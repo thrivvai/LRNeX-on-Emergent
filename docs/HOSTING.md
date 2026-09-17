@@ -95,9 +95,11 @@ AWS production hosting is materially more (RDS, NAT, CloudFront, WAF, ops time) 
 
 ## 6. Open choices remaining
 
-1. **Transactional email provider** — Resend (recommended) vs Postmark.
-2. **DNS through Cloudflare** — recommended (pairs with Turnstile); confirm you're OK moving `d2dmoneyhub.com` DNS there, or keep it at the current registrar and use Turnstile standalone.
-3. **US region pick** — a specific region for Supabase/Vercel/Upstash (e.g., `us-east-1`), unless a district specifies otherwise.
+1. **Transactional email provider** — Resend (recommended) vs Postmark. **Open** — pros/cons compared; Resend recommended for the pilot.
+2. **DNS through Cloudflare** — recommended (pairs with Turnstile). **Open — pending discussion with Whitney** before moving `d2dmoneyhub.com` DNS. Turnstile works standalone in the meantime.
+3. **US region** — **Resolved: `us-east-1`.** Pin Supabase, Vercel functions, and Upstash to it.
+
+Vendor DPAs, the sub-processor list, data-residency, and the FERPA data chain are tracked in `docs/SUBPROCESSORS.md`.
 
 ---
 
