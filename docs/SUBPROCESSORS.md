@@ -47,7 +47,7 @@ Residency target is **US (`us-east-1`)** wherever a region is selectable.
 | **Vercel** | App hosting / compute | **Transits & processes** (requests, logs); not the store of record | US region (pin functions) | vercel.com/legal/dpa | vercel.com/legal/subprocessors |
 | **Upstash** | Redis — rate-limit counters | **Metadata only** (IPs / keys, not student records) | US | upstash.com (trust/DPA page) | (on trust page) |
 | **Cloudflare** | Turnstile (bot), + DNS/WAF if adopted | **Transits metadata** (IPs, request/challenge data) | Global edge | cloudflare.com/cloudflare-customer-dpa | cloudflare.com/gdpr/subprocessors |
-| **Email — Resend or Postmark** | Transactional email | **Yes — recipient PII + message content** (names, emails, "report ready" notices) | US | resend.com/legal/dpa · postmarkapp.com/dpa | (on each provider's legal page) |
+| **Resend** (email) | Transactional email | **Yes — recipient PII + message content** (names, emails, "report ready" notices) | US | resend.com/legal/dpa | resend.com/legal (sub-processors) |
 | **Sentry** | Error monitoring | **Only if not scrubbed** — see flag below | US (choose US data region) | sentry.io/legal/dpa | sentry.io/legal/subprocessors |
 | **AWS** | Underlying infra for Supabase/Vercel/Upstash | Sub-sub-processor (data at rest lives here) | US (`us-east-1`) | aws.amazon.com/agreement (DPA addendum) | AWS sub-processor listings |
 | **GitHub** | Source code | **No student data** — code only (enforced) | US | github.com (GitHub DPA) | GitHub sub-processor list |

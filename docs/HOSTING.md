@@ -43,7 +43,7 @@ Until one of these is real, staying on Vercel + Supabase is the correct call.
 | 9 | **Error monitoring** | Exceptions, traces | **Sentry** | Sentry | Scrub PII from events |
 | 10 | **Logs** | Request/app logs | Vercel logs | CloudWatch | Retention policy |
 | 11 | **Analytics** | Product events | **Internal `app_events` table** | Internal table → PostHog later | Per PRD; no warehouse in MVP |
-| 12 | **Transactional email** | Password reset, invites, notices | **Resend or Postmark** *(pick)* | SES / Resend | **Was missing — required for auth** |
+| 12 | **Transactional email** | Password reset, invites, notices | **Resend** (chosen) | Resend / SES | Required for auth; Postmark is the prod upgrade path |
 | 13 | **DNS / domain** | `d2dmoneyhub.com` + app subdomain | **Cloudflare DNS** *(recommended)* | Cloudflare / Route 53 | App on `app.d2dmoneyhub.com`; pairs with Turnstile |
 | 14 | **CDN / WAF / DDoS** | Edge delivery + filtering | Vercel edge (+ Cloudflare front) | CloudFront + WAF | |
 | 15 | **Backups / DR** | DB + storage backups | **Supabase automated backups + PITR** | RDS snapshots + PITR | **Was underspecified — set retention + test restore** |
@@ -95,8 +95,8 @@ AWS production hosting is materially more (RDS, NAT, CloudFront, WAF, ops time) 
 
 ## 6. Open choices remaining
 
-1. **Transactional email provider** — Resend (recommended) vs Postmark. **Open** — pros/cons compared; Resend recommended for the pilot.
-2. **DNS through Cloudflare** — recommended (pairs with Turnstile). **Open — pending discussion with Whitney** before moving `d2dmoneyhub.com` DNS. Turnstile works standalone in the meantime.
+1. **Transactional email provider** — **Resolved: Resend** for the pilot (React Email fit, free tier covers pilot volume, SOC 2 + DPA). Postmark remains the production upgrade path if deliverability or procurement demands it.
+2. **DNS through Cloudflare** — recommended (pairs with Turnstile). **Open — pending discussion with Whitney** before moving `d2dmoneyhub.com` DNS. Turnstile is confirmed and stays either way; it works standalone in the meantime.
 3. **US region** — **Resolved: `us-east-1`.** Pin Supabase, Vercel functions, and Upstash to it.
 
 Vendor DPAs, the sub-processor list, data-residency, and the FERPA data chain are tracked in `docs/SUBPROCESSORS.md`.
