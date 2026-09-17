@@ -1,6 +1,6 @@
 # Security Baseline — LRNEX & D2D
 
-**Version:** 0.1
+**Version:** 0.2
 **Status:** Binding baseline for all scaffolding and build work
 **Applies to:** LRNEX MVP **and** D2D Student Growth Platform (same stack; both handle student data on minors)
 **Stack:** Next.js 15 (App Router) · TypeScript · Prisma · PostgreSQL · Supabase Auth + Storage · Zod · Vercel
@@ -78,11 +78,11 @@ Two rules override convenience everywhere below:
 - **Done when:** no plaintext password is ever stored or logged; hashing is delegated to Supabase Auth (or an approved algorithm).
 
 ### 11. Rate limit login
-- **Do:** Throttle auth-sensitive endpoints — login, signup, password reset, magic-link — per IP **and** per account, with backoff/lockout on repeated failures. Use Supabase's built-in auth rate limits plus an edge limiter (e.g., Upstash) on custom endpoints.
+- **Do:** Throttle auth-sensitive endpoints — login, signup, password reset, magic-link — per IP **and** per account, with backoff/lockout on repeated failures. Use Supabase's built-in auth rate limits, plus **Upstash** (`@upstash/ratelimit`, chosen) as the limiter on custom endpoints. Pin the Upstash store to a US region.
 - **Done when:** repeated failed logins are throttled; a test confirms lockout/backoff triggers.
 
 ### 12. Add bot protection
-- **Do:** A CAPTCHA/challenge (Cloudflare Turnstile or hCaptcha — Supabase Auth supports both) guards signup, login, and password reset against automated abuse. *(Provider choice is an open item — Turnstile recommended.)*
+- **Do:** **Cloudflare Turnstile** (chosen; Supabase Auth supports it) guards signup, login, and password reset against automated abuse. Verify the Turnstile token server-side before processing the request.
 - **Done when:** the challenge is enforced server-side on those endpoints; requests without a valid token are rejected.
 
 ---
@@ -122,7 +122,7 @@ Two rules override convenience everywhere below:
 ## F. Supply chain
 
 ### 20. Scan dependencies
-- **Do:** Dependency scanning runs in CI (`npm audit` gate + Dependabot or Snyk). Commit the lockfile; keep dependencies current; review transitive advisories. A high/critical advisory blocks merge until resolved or explicitly risk-accepted.
+- **Do:** Dependency scanning runs in CI (`npm audit` gate + **GitHub Dependabot**, chosen — native to the repo, alerts + version-update PRs). Commit the lockfile; keep dependencies current; review transitive advisories. A high/critical advisory blocks merge until resolved or explicitly risk-accepted.
 - **Done when:** CI runs a dependency scan on every PR; high/critical findings fail the build until addressed.
 
 ---
@@ -149,12 +149,14 @@ A PR touching app code is not mergeable until: auth-guard tests pass · tenant/p
 
 ---
 
-## Open items (need a choice, not blocking the baseline)
+## Resolved provider decisions (2026-09-17)
 
-- **Bot-protection provider** (control 12): Cloudflare Turnstile (recommended) vs hCaptcha.
-- **Dependency scanner** (control 20): Dependabot (free, native) vs Snyk (richer).
-- **Field-level encryption scope** (control 5): confirm which fields beyond accommodations warrant `pgcrypto`/app-layer encryption.
-- **Rate-limit backend** (control 11): Supabase built-ins only vs adding Upstash for custom endpoints.
+- **Bot-protection provider** (control 12): **Cloudflare Turnstile** ✅
+- **Dependency scanner** (control 20): **GitHub Dependabot** ✅ (native to the repo)
+- **Rate-limit backend** (control 11): **Upstash** (`@upstash/ratelimit`) added for custom endpoints ✅
+- **Field-level encryption** (control 5): **confirmed** — applied to accommodations/IEP flags and sensitive PII via `pgcrypto`/app-layer, keys in the secrets manager ✅
+
+Hosting, data residency, backups, sub-processors, and the transactional-email gap are captured in `docs/HOSTING.md`.
 
 ---
 
