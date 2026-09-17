@@ -1,115 +1,111 @@
 # D2D Student Growth Platform — PRD + Architecture Spec
 
-**Version:** 0.2 (review-ready draft)
+**Version:** 0.3 (review-ready draft)
 **Status:** Pilot-ready build specification — NOT compliance-certified production
 **Product:** D2D Student Growth Platform ("LMS D2D")
 **Client / Program Owner:** Diapers 2 Deposits, Inc. (D2D)
 **Builder:** Thrivv AI / Thrivv Hyperintelligence
-**Source material:** Whitney's build-overview email + two rounds of meeting notes (2026-08)
+**Source material:** Whitney's build-overview email + three rounds of meeting notes (2026-08 → 09)
 
 > **This document is for review. No design or code begins until it is approved.**
 > Where the notes and the email conflict, the meeting notes are treated as the authority and the conflict is called out inline.
 
 ---
 
-## 0. What changed from v0.1 → v0.2
+## 0. Changelog
 
-Incorporates the second round of clarifications:
+### v0.2 → v0.3 (behavior-first reframe)
+- **Primary measure is now behavior, not test-score growth (§6, §7).** Whitney wants the platform centered on *how scholars behave and act*. A comparative analysis of behavior becomes a **confidence score** — the headline outcome. Test scores are still collected (lowest **and** highest pre, lowest **and** highest post) but are **supplementary, not the primary growth metric.**
+- **Native assessment delivery pulled into V1 (§5, §18).** Required to capture full behavior telemetry (dwell, answer-changes, revisits) — Google Forms can't. This replaces the v0.2 "Forms now, native later" plan.
+- **Behavior tracking generalized beyond assessments (§8) — NEW.** Whitney may surface existing **D2D Money Hub activities/programs *through* the LMS** and have the LMS **track scholar behavior across those actions.** Captured as a first-class capability.
+- **Rewards themed as "Digital Dollars" (§13).** Virtual-only in V1, on-brand with financial literacy.
+- **Resolved:** rewards scope (virtual, Digital Dollars); behavior fidelity (native in V1).
 
-- **Engine reframe (§1).** LRNEX / Prysm / Audacity are **future product ideas, not software that powers this build.** This build produces the *learnings* that will inform them.
-- **Assessment behavior analytics (§7) — NEW V1 capability.** Answer-change counts, time-lingering, revisits, and similar during-assessment signals.
-- **Permissions refined (§3).** Stakeholder/evaluator read-only; instructor can input/upload but not delete or alter core functions; super_admin does any and all functions.
-- **Growth rule resolved (§6.2).** Lowest score of the first pretest → highest score of the final posttest; all attempts retained.
-- **Super-admin cohort library + per-cohort config (§9) — expanded.** A composable library of surveys, retests, pre/post-tests, and standards sets (ESSA / MCAP / any state), plugged into cohorts, extensible by uploading documentation.
-- **Resolved:** Financial Literacy Vortex → V2 (§6.3); clock-in = rewards + data, not attendance-of-record (§4); dashboard design directive added (§10).
+### v0.1 → v0.2
+- LRNEX/Prysm/Audacity reframed as future product ideas this build informs; behavior analytics added; permissions refined (read-only stakeholder, instructor input-not-destroy, super_admin all); super-admin cohort library expanded; Vortex → V2; clock-in = rewards + data.
 
 ---
 
-## 1. What this is — and how LRNEX/Prysm/Audacity actually relate
+## 1. What this is
 
-The D2D Student Growth Platform is an **instructor-facing data spine** for Diapers 2 Deposits' out-of-school-time programming. Today scholar growth lives in scattered Google Forms, spreadsheets, and instructor memory. This platform puts it in one place: **pre-test and post-test in → growth, readiness, and behavior signals out**, with a recommendation layer that tells instructors where to push next. It turns d2dmoneyhub.com from a content site into the program's data spine.
+The D2D Student Growth Platform is an **instructor-facing data spine** for Diapers 2 Deposits' out-of-school-time programming. Today scholar progress lives in scattered Google Forms, spreadsheets, and instructor memory. This platform puts it in one place — but its center of gravity is **behavior**: *how* scholars act, hesitate, persist, and choose, rendered into a **confidence score** and paired with supporting score and readiness data. Assessments and activities in → **behavior signals, a confidence score, readiness, and supporting growth out**, with a recommendation layer that tells instructors where to push next. It turns d2dmoneyhub.com from a content site into the program's data spine.
 
-**LRNEX, Prysm, and Audacity are not completed software and do not power this build.** They are **future product ideas** — which is why the email names them. The relationship runs the other way:
+- **Students barely touch it.** In V1 their surface is: take assessments (pre/post/surveys), a clock-in button, their **Digital Dollars** rewards view, and — if adopted — **D2D Money Hub activities surfaced through the LMS.** Everything they do is timestamped and behavior-tracked.
+- **Everyone else works from the dashboard:** instructors, the Instructional Lead, admins, the evaluator, and school staff.
 
-> This build includes constructing D2D's own **mastery + assessment engine**. The *learnings* from building it — how to map results to standards and career tendencies, how to monitor student behavior during assessments, what recommendation logic actually helps — are exactly the feedback and data needed to build LRNEX / Prysm / Audacity **later**. This platform is the R&D substrate for those future products, not a consumer of them.
+**LRNEX, Prysm, and Audacity are not completed software and do not power this build.** They are **future product ideas.** This build constructs D2D's own mastery + assessment + **behavior** engine; the *learnings* from it — how to read behavior during assessments and activities, how a confidence score behaves, what recommendation logic helps — are the feedback needed to build those products **later**. This platform is the R&D substrate, not a consumer of them.
 
-So: nothing external "plugs in" as a finished engine. The mastery engine, recommendation matrix, and behavior analytics are built **here**, as internal modules, and their outputs seed the future roadmap.
+**Not production-certified on day one.** Compliance-aligned and pilot-ready, with the controls (FERPA-by-design, role-based access, audit, timestamping) needed to reach production after legal, security, accessibility, and procurement review.
 
-**Not production-certified on day one.** Same stance as all Thrivv MVPs: compliance-aligned and pilot-ready, with the controls (FERPA-by-design, role-based access, audit, timestamping) needed to reach production after legal, security, accessibility, and procurement review. Do not describe it as fully FERPA-certified or audit-certified until that review is done.
-
-### 1.1 What D2D is actually trying to do (keep all of these in view)
-
-The platform serves several D2D objectives at once — the design should never optimize one and drop the others:
-
-1. Teach **financial literacy** (F.A.S.T. Framework, MD Personal Financial Literacy, AFC®-aligned).
-2. **Map to state standards** and the state exam that matters (MCAP first).
-3. **Improve mathematics learning** in the process (MCCR Math).
-4. Produce **clear, FERPA-compliant, 21st CCLC-compliant reports**.
-5. Surface **student behavior during assessment** as first-class data, not just scores.
+### 1.1 What D2D is trying to do (keep all in view, in priority order)
+1. **Understand and improve scholar behavior** — persistence, confidence, engagement — as the headline signal (**the confidence score**).
+2. Teach **financial literacy** (F.A.S.T. Framework, MD Personal Financial Literacy, AFC®-aligned).
+3. **Map to state standards** and the state exam that matters (MCAP first); **improve mathematics learning** (MCCR Math) in the process.
+4. Produce **clear, FERPA-compliant, 21st CCLC-compliant reports.**
+5. Track scholar behavior **across assessments and (optionally) D2D Money Hub activities**, not just within a single test.
 
 ---
 
 ## 2. The architectural spine — a pluggable, per-cohort-configurable shell (PRIORITY)
 
-The email's *priority requirement* ("standards frameworks and exam blueprints are configuration, not hard-coded") and the notes' "shell with pluggable capabilities" describe the same backbone. The v0.2 clarifications sharpen it: **the super admin composes each cohort from a library of reusable pieces.**
+The email's *priority requirement* ("standards frameworks and exam blueprints are configuration, not hard-coded") and the notes' "shell with pluggable capabilities" describe the same backbone: **the super admin composes each cohort from a library of reusable pieces.**
 
-**Maps against MCAP today; accepts additional state exams as configuration, never a rebuild.** Registries:
+**Maps against MCAP today; accepts additional state exams as configuration, never a rebuild.**
 
 ### 2.1 Framework registry
-Academic standards as **loadable, versioned sets**, versioned by adoption year. At launch: **MCCR Math**, **MD Personal Financial Literacy (PFL)**. **ESSA, MCAP, and any state's standards** are additional loadable sets the super admin can select and attach per cohort.
+Academic standards as **loadable, versioned sets** (by adoption year). At launch: **MCCR Math**, **MD Personal Financial Literacy (PFL)**. **ESSA, MCAP, and any state's standards** are additional loadable sets the super admin selects and attaches per cohort.
 
 ### 2.2 Exam blueprint registry
 Each state exam is a **blueprint**: sections, the standards each section tests, scoring bands. **MCAP is the first blueprint.** Others are added as config.
 
 ### 2.3 Pluggable mapping
-Items → standards → exam sections through the **active blueprint**. Swap or add a blueprint and the **same scholar data re-maps** with no code change. An executive/super-admin member (not the instructor) loads frameworks and blueprints.
+Items → standards → exam sections through the **active blueprint**. Swap or add a blueprint and the **same scholar data re-maps** with no code change. A super-admin member (not the instructor) loads frameworks and blueprints.
 
 ### 2.4 Internal modules (not external engines)
-The mastery engine, recommendation decision-matrix (§8), and behavior analytics (§7) are **internal, modular components** of this build. There is no dependency on LRNEX/Prysm/Audacity — those are downstream products this build's data will inform.
+The mastery engine, **behavior + confidence-score engine** (§7), recommendation decision-matrix (§9), and activity tracking (§8) are **internal, modular components** of this build. No dependency on LRNEX/Prysm/Audacity.
 
 ---
 
 ## 3. Roles & Permissions (FERPA-aligned, 3 tiers with personas)
 
-Three permission **tiers**, each with **personas** that carve scope. Reconciles the notes' "user / admin / super admin" with the email's four personas, and adds the v0.2 action limits.
+Three permission **tiers**, each with **personas** carving scope.
 
 ### Tier 1 — `user` (base access)
 | Persona | Access |
 |---|---|
-| **student** (scholar) | Minimal surface only: assigned pre-tests, post-tests, surveys; clock-in button; own rewards. All actions + behavior telemetry timestamped. No dashboard, no other data. |
-| **parent** | **Read-only, own child only** — that scholar's growth/outcome view. |
+| **student** (scholar) | Minimal surface only: assigned assessments, clock-in, own Digital Dollars, assigned activities. All actions + behavior telemetry timestamped. No dashboard, no other data. |
+| **parent** | **Read-only, own child only.** |
 
 ### Tier 2 — `admin` (operational, cohort/site-scoped) — **can input, cannot destroy**
 | Persona | Access |
 |---|---|
-| **instructor** | Assigned cohort roster + single-student dashboards; administer/score assessments; **upload/input pertinent data**; view growth, behavior signals, and recommendations; select a recommendation and mark it implemented; manual attendance entry. **Cannot delete data. Cannot alter core functions** (frameworks, blueprints, matrix, reward rules, cohort config, user provisioning). |
-| **school_admin** | Broader read/input access across their school's cohorts and reporting; same destructive/core-function limits as instructor. |
+| **instructor** | Assigned cohort roster + single-student dashboards; administer/score assessments; **upload/input pertinent data**; view behavior, confidence score, growth, and recommendations; select a recommendation and mark it implemented; manual attendance entry. **Cannot delete data. Cannot alter core functions.** |
+| **school_admin** | Broader read/input across their school's cohorts and reporting; same limits. |
 | **instructional_lead** | Oversight across assigned cohorts/instructors; assignment and QA; same limits. |
 
 ### Tier 3 — `super_admin` (any and all functions)
 | Persona | Access |
 |---|---|
-| **CEO (Whitney) / program_director / dev_team** | **Any and all functions.** Controls what happens within **each cohort, specifically to that cohort**. Loads frameworks/blueprints; manages the cohort library (§9); manages the decision matrix and reward rules; provisions users; deletes/edits data; full cross-cohort/school/(future) state reporting. |
+| **CEO (Whitney) / program_director / dev_team** | **Any and all functions.** Controls each cohort specifically. Loads frameworks/blueprints; manages the cohort library (§10), decision matrix, reward rules, and activity catalog; provisions users; deletes/edits data; full reporting. |
 
 ### Read-only observers
 | Persona | Access |
 |---|---|
-| **stakeholder / evaluator** | **Read-only** access to growth and outcome data for evaluations. Provisioned and scope-limited by super_admin. No input, no core-function access. |
+| **stakeholder / evaluator** | **Read-only** growth/outcome data for evaluations. Provisioned and scope-limited by super_admin. No input, no core-function access. |
 
-**Model:** every scholar-owned query scoped by tier + persona scope (own child / assigned cohort / assigned school / all). One centralized authorization module. **Delete and core-function mutations are super_admin only.** No cross-scope access except super_admin.
+**Model:** every scholar-owned query scoped by tier + persona scope. One centralized authorization module. **Delete and core-function mutations are super_admin only.** No cross-scope access except super_admin.
 
 ---
 
 ## 4. Student surface (V1) — full scope
 
-Per the notes (overriding the email's "minimal surface, nothing else"):
-
 1. **Log in** (minimal, scholar-appropriate).
-2. **Clock-in button** — a single, **easily accessible** tap recording a timestamped event. Its purpose is **rewards + data**, *not* the official attendance record. (Someone may choose to use it as an informal attendance proxy — that's fine — but Planbook/manual entry remains attendance-of-record.)
-3. **Take assigned assessments** — pre-tests, post-tests, **surveys**. During assessment, the platform captures **behavior telemetry** (§7).
-4. **Reward view** — earned rewards/points/badges.
+2. **Clock-in button** — a single, **easily accessible** timestamped tap. Purpose is **rewards + data**, *not* attendance-of-record.
+3. **Take assigned assessments** — pre-tests, post-tests, surveys, retests — **delivered natively** (§5), with **behavior telemetry captured throughout** (§7).
+4. **Digital Dollars** — the scholar's virtual reward balance and badges (§13).
+5. **Assigned activities** (if adopted) — access **D2D Money Hub activities surfaced through the LMS**, with behavior tracked across them (§8).
 
-**Everything student-side is timestamped and immutable** (login, clock-in, assessment start/submit, each response, each answer change, dwell time per item, survey submit, reward events).
+**Everything student-side is timestamped and immutable** (login, clock-in, assessment start/submit, each response, each answer change, dwell per item, revisits, survey submit, activity actions, reward events).
 
 Students never see cohort data, other scholars, dashboards, recommendations, or reports.
 
@@ -118,11 +114,11 @@ Students never see cohort data, other scholars, dashboards, recommendations, or 
 ## 5. Assessment model
 
 ### 5.1 Types & delivery
-`pretest`, `posttest`, `survey`, plus **retests** (see §9 library). Each item is tagged to a **standard** and the **exam section** it feeds. Google Forms today; **native delivery over time** (Phase 2). The model does not assume the delivery mechanism.
+`pretest`, `posttest`, `survey`, `retest`. Each item is tagged to a **standard** and the **exam section** it feeds. **Delivery is native in V1** — the platform renders and administers assessments itself, so it can capture full behavior telemetry (§7). *(This is the v0.3 change: native delivery moves from Phase 2 into V1. Google-Forms ingestion may remain a fallback importer, but the primary path is native.)*
 
-### 5.2 Retake rule (from email)
+### 5.2 Retake rule
 - **Unlimited pre- and post-test retakes** — all attempts retained ("mind mining" of scholar choices).
-- **A pretest retake stays a pretest** — never auto-promoted to a post-test, regardless of how many times taken.
+- **A pretest retake stays a pretest** — never auto-promoted to a post-test.
 - Each administration records `assessment_type`, `attempt_number`, timestamps; all attempts preserved.
 
 ---
@@ -132,234 +128,221 @@ Students never see cohort data, other scholars, dashboards, recommendations, or 
 ### 6.1 Mapping & mastery
 Item → standard → exam section (through the active blueprint). Answers roll up into **mastery by standard** and **readiness by exam section**.
 
-### 6.2 Growth measurement (resolved)
-Growth is measured **from the lowest score of the first pretest to the highest score of the final posttest**, per scholar — a conservative baseline against the best outcome. **All scores for every attempt are retained** for analysis (not just the two endpoints). Growth is computed at every level: scholar, standard, exam section, cohort.
+### 6.2 Score data (supplementary — NOT the primary metric)
+Per scholar, the platform **collects and retains the lowest and highest pretest scores and the lowest and highest posttest scores**, plus every individual attempt. This is **descriptive supporting data**, not the headline measure. The **primary measure is the behavioral confidence score (§7).**
 
-> Interpretation note: "first pretest" / "final posttest" read as the pretest phase (baseline) vs the posttest phase (outcome); lowest attempt in the former, highest in the latter. Flag if you meant strictly the chronologically first/last administration.
+> This resolves the earlier growth-metric concern: because the score spread is supplementary rather than the primary effect claim, the "lowest-pre vs highest-post" framing is fine as a descriptive range. Evaluators should be shown the confidence score as the primary lens, with score ranges as context.
 
 ### 6.3 Readiness classification
-Each scholar classified per exam section as **On Track / Watch / Gap**, on **D2D's fixed rules** mapping growth/mastery to projected state-exam performance. Predictive modeling is **Phase 3**.
+Each scholar classified per exam section as **On Track / Watch / Gap**, on **D2D's fixed rules**. Predictive modeling is **Phase 3**.
 
-> **Financial Literacy Vortex mapping → V2.** Not addressed in this build. (Resolved.)
+> **Financial Literacy Vortex mapping → V2.** Not in this build.
 
 ---
 
-## 7. Assessment behavior analytics (NEW — V1)
+## 7. Behavior analytics & the confidence score (PRIMARY MEASURE — V1)
 
-D2D is **very** interested in *how* scholars behave during an assessment, not only whether they got items right. V1 captures per-item interaction telemetry and surfaces it on the dashboards and in reports.
+This is the heart of v0.3. D2D cares most about *how* scholars behave, and turns that into a **confidence score**.
 
-**Signals to capture (per item, per administration, timestamped):**
-- **Answer changes** — did the scholar change an answer, and how many times?
-- **Dwell / lingering** — time spent on each item; items where the scholar lingered far longer than others.
+### 7.1 Behavior signals (captured natively, per item, per administration, timestamped)
+- **Answer changes** — whether and how many times a scholar changes an answer (second-guessing).
+- **Dwell / lingering** — time per item; items lingered on far longer than others (hesitation).
 - **Revisits** — returning to an item after moving on.
-- **Sequence & pacing** — order answered, total time, idle gaps.
-- (Extensible — the telemetry model should allow new signal types without a schema rebuild.)
+- **Response latency & pacing** — time to first answer, order answered, idle gaps.
+- **Persistence & completion** — items skipped, returned to, or abandoned.
+- (Extensible — the telemetry model allows new signal types without a schema rebuild.)
 
-**Uses:**
-- Instructor dashboard flags (e.g., "lingered + changed answer 3× on the strongest-gap standard").
-- Report inputs alongside growth/improvement.
-- **R&D substrate** — this is precisely the "monitor student behavior during assessments" learning that seeds future products (§1).
+### 7.2 The confidence score (the headline output)
+A **comparative analysis of behavior signals becomes a per-scholar confidence score** — a measure of how *secure* a scholar's responses are, distinct from raw correctness. It is computed by comparing a scholar's behavior across items, attempts, over time, and (where meaningful) against cohort norms. Surfaced per scholar and, where possible, per standard/section, on the dashboards and in reports.
 
-> **OPEN DECISION (telemetry & delivery):** Rich per-item telemetry (dwell, answer-change counts, revisits) is hard to capture through **Google Forms**. In V1, how much behavior data can we realistically get from Forms vs. what waits for **native delivery** (Phase 2)? **Proposed:** capture what Forms exposes now (submission timing, final answers) + a light native wrapper for dwell/answer-change where feasible; full fidelity lands with native delivery. Confirm the V1 fidelity bar.
+> **OPEN — needs Whitney's input (§19):** the exact **confidence-score definition** — which signals, weighted how, on what scale (e.g., 0–100 or Low/Building/Solid). Proposed starting model: a weighted composite of hesitation (dwell), second-guessing (answer changes), latency, and persistence, normalized per item difficulty and compared over time. **This formula is a product decision, not a default to assume.**
+
+### 7.3 Uses
+- Instructor dashboard flags ("low confidence + changed answer 3× on a Gap standard").
+- **Primary report input** alongside supplementary score ranges and readiness.
+- Feeds the recommendation matrix (§9).
+- R&D substrate for future products (§1).
 
 ---
 
-## 8. Recommendation engine — fixed static decision matrix
+## 8. D2D Money Hub activity integration (NEW — scope to confirm)
 
-Per the notes, a **fixed, static decision matrix** — not predictive, no AI inference. Runs D2D's proprietary logic inside the system.
+Whitney may want to **surface existing D2D Money Hub activities and programs *through* the LMS** and have the LMS **track scholar behavior across those actions** — extending behavior analytics beyond assessments into program activities.
 
-- Input: a scholar's **largest gap**, **strongest lever**, readiness classification, and now **behavior signals** (§7) where relevant.
-- The **decision matrix** maps (gap / readiness / behavior signal) → a **prioritized support strategy** + ranked alternates.
-- Each matrix cell references one or more entries in the **cohort library's knowledge base** (§9), so every strategy is grounded in a cited source (ESSA / WWC / CASEL / MCAP / uploaded docs).
+- **Catalog:** activities/programs registered as library items the super admin can assign to cohorts.
+- **Access:** scholars reach assigned activities from the student surface.
+- **Tracking:** the platform records scholar **actions and behavior across activities** (opens, time-on-activity, steps completed, choices made) as timestamped events, feeding the behavior picture and confidence score.
+
+> **OPEN — scope + approach to confirm (§19):** is this **V1 or a fast-follow**, and what is the technical approach — embed (iframe), deep-link with a tracking wrapper, or native re-build of activities? Fidelity of behavior tracking depends heavily on that choice (an external embed exposes far less than a native/wrapped activity).
+
+---
+
+## 9. Recommendation engine — fixed static decision matrix
+
+A **fixed, static decision matrix** — not predictive, no AI inference. Runs D2D's proprietary logic.
+
+- Input: a scholar's **largest gap**, **confidence score / behavior signals** (§7), and readiness.
+- The **matrix** maps (gap / readiness / behavior + confidence signal) → a **prioritized support strategy** + ranked alternates.
+- Each cell references entries in the **cohort library's knowledge base** (§10), so every strategy is cited (ESSA / WWC / CASEL / MCAP / uploaded docs).
 - The **instructor selects one and marks it implemented** — timestamped, audited.
-- Matrix and library entries are authored/controlled by **super_admin**, and can be tailored **per cohort**.
+- Matrix and library entries are super_admin-authored, tailorable **per cohort**.
 
-Predictive recommendation is Phase 3, out of V1.
+Predictive recommendation is Phase 3.
 
 ---
 
-## 9. Super-admin cohort library & per-cohort configuration (expanded)
+## 10. Super-admin cohort library & per-cohort configuration
 
-The super admin **composes each cohort** from a reusable **library**, and can extend that library over time. This is the concrete form of the "pluggable shell."
+The super admin **composes each cohort** from a reusable **library**, and extends it over time.
 
-### 9.1 The library holds selectable, reusable items
+### 10.1 The library holds selectable, reusable items
 - **Surveys** (different types)
 - **Pretests, post-tests, and retests** (different types)
-- **Standards sets** — **ESSA**, **MCAP**, and **any state standards** the program needs
+- **Standards sets** — **ESSA**, **MCAP**, and **any state standards**
 - **Exam blueprints**
-- **Knowledge-base documentation** (evidence base for recommendations: ESSA, WWC, CASEL, MCAP, and **uploaded documents**)
+- **Activities / programs** (incl. D2D Money Hub activities, §8)
+- **Knowledge-base documentation** (evidence base: ESSA, WWC, CASEL, MCAP, and **uploaded documents**)
 
-### 9.2 Compose per cohort
-For **each specific cohort**, the super admin **plugs in** the chosen surveys / assessments / standards sets / blueprint / knowledge entries. Configuration is **cohort-specific and granular** — the super admin controls what happens within each cohort in a very specific way.
+### 10.2 Compose per cohort
+For **each cohort**, the super admin **plugs in** the chosen items. Configuration is **cohort-specific and granular.**
 
-### 9.3 Extend the library
-Super admin can **upload documentation** into the knowledge library, which then becomes available to **tailor recommendations and content to specific cohorts.** Uploads are versioned and audited.
-
-> This makes the registries (§2) usable in practice: registries define the *types*; the library is the *stocked shelf*; per-cohort config is the *act of plugging pieces in*.
-
----
-
-## 10. Dashboard design directives
-
-The **admin and super-admin dashboards must be simplified but elegant** — easy to navigate, **plain language**, low cognitive load. The audience is program staff and executives, not data engineers.
-
-- Plain-language labels over jargon (e.g., "Where each scholar stands," not "readiness vector").
-- The single-student view and cohort roster are the primary surfaces (per the mockups referenced in the email).
-- Growth **and** behavior signals **and** attendance visible together, without drilling through menus.
-- Reports reachable in a click, in the formats D2D needs.
-- Elegant, calm, credible — institutional but not intimidating.
-
-Student surface stays minimal and scholar-appropriate.
+### 10.3 Extend the library
+Super admin **uploads documentation** into the knowledge library to **tailor recommendations and content per cohort.** Uploads are versioned and audited.
 
 ---
 
-## 11. Attendance
+## 11. Dashboard design directives
 
-- **Attendance-of-record:** Planbook sync **or** manual entry by an admin.
-- **Clock-in** (§4) is a separate, easily accessible engagement/reward + data signal — **not** the attendance record, though it may be used informally as a proxy.
-- Attendance displays alongside academic growth and behavior signals on the dashboard.
+**Admin and super-admin dashboards: simplified but elegant** — easy to navigate, **plain language**, low cognitive load. Audience is program staff and executives.
 
----
-
-## 12. Reward system (V1)
-
-- **Earning events** (timestamped): clock-in, completing a pre-test / post-test, completing a survey — a configurable set.
-- **Reward rules:** event → points/tokens/badge, controlled by **super_admin**, adjustable **per cohort**.
-- **Reward ledger:** per-scholar, timestamped, auditable.
-- **Scholar view:** earned rewards/points/badges.
-
-Simple in V1 (points/badges on defined events). No marketplace/redemption economy in V1.
-
-> **OPEN DECISION (rewards):** Virtual-only (points/badges shown to scholar) in V1, or tie to real-world redemption? Real-world redemption adds fulfillment + policy scope — recommended for a later phase.
+- Plain-language labels over jargon ("How confident each scholar is," not "behavioral vector").
+- Single-student view and cohort roster are the primary surfaces.
+- **Confidence score + behavior signals + readiness + attendance visible together**, without menu-diving; supplementary score ranges one click away.
+- Reports reachable in a click.
+- Elegant, calm, credible. Student surface stays minimal and scholar-appropriate.
 
 ---
 
-## 13. Reporting — audit-ready, growth *and* behavior
+## 12. Attendance
 
-Reports care about **growth and improvement — but not only that.** They also carry **behavior-during-assessment** signals and readiness. Cohort and individual exports target:
-- **21st CCLC**
-- **MSDE**
-- **Program evaluator**
-
-FERPA-compliant and 21st-CCLC-compliant by design. Reporting reads the same mastery / readiness / growth / behavior records that run the dashboards — the data that runs the classroom is the data that proves the outcome.
+- **Attendance-of-record:** Planbook sync **or** manual admin entry.
+- **Clock-in** (§4) is a separate engagement/reward + data signal — **not** the attendance record.
+- Attendance displays alongside confidence/behavior and score data.
 
 ---
 
-## 14. Core workflow (six stages)
+## 13. Reward system (V1) — "Digital Dollars"
 
-1. **Set up the cohort.** Super-admin composes the cohort from the library (§9): pick surveys, pre/post-tests, retests, standards sets (ESSA/MCAP/state), blueprint, and knowledge entries; load frameworks + blueprint.
-2. **Build/attach the assessments.** Items authored/tagged to standards + exam sections. Google Forms today, native over time.
-3. **Capture the data.** Scholars complete pre-test at intake, post-test at close; **behavior telemetry captured during assessment**; surveys + observations attach. Attendance from Planbook/manual. All student-side actions timestamped.
-4. **Map and score.** Item results → mastery by standard → readiness by section. Growth computed lowest-first-pretest → highest-final-posttest at every level, all attempts retained.
-5. **Predict and recommend.** Readiness classified (On Track / Watch / Gap). The decision matrix ranks strategies (using gap + behavior signals + library KB) and presents best + alternates. Instructor selects and implements.
-6. **Report.** Growth + behavior + readiness export into 21st CCLC, MSDE, evaluator formats.
+Virtual, financial-literacy-themed reward currency.
 
----
+- **Brand:** rewards are **"Digital Dollars"** — on-brand with D2D's financial-literacy mission (earning, and later saving/budgeting concepts).
+- **Earning events** (timestamped): clock-in, completing an assessment, completing a survey, completing an activity — configurable.
+- **Reward rules:** event → Digital Dollars (and/or badges), controlled by **super_admin**, adjustable **per cohort**.
+- **Ledger:** per-scholar Digital Dollars balance, timestamped and auditable.
+- **Scholar view:** current balance + badges.
 
-## 15. Data model (core tables, draft)
+**Virtual only in V1** — no real-world redemption/fulfillment. The financial-literacy theme (a scholar *earns* and can later *save* Digital Dollars) is intentional reinforcement of the program's content; a future phase may add saving/budgeting mechanics or redemption.
 
-Scope: D2D is one program — multi-scholar, multi-cohort, multi-instructor, multi-school, eventually multi-state. Scope enforced by school/cohort relationships; a program id supports future multi-state isolation.
-
-- `programs` (id, name, state, settings, timestamps)
-- `schools` (id, programId, name, timestamps)
-- `cohorts` (id, programId, schoolId, name, term, status, timestamps)
-- `users` (id, programId, email, name, tier[user|admin|super_admin], persona, status, authProviderId, timestamps)
-- `student_profiles` (id, programId, userId, schoolId, gradeBand, timestamps)
-- `parent_links` (id, programId, parentUserId, studentUserId)
-- `staff_assignments` (id, programId, adminUserId, scopeType[cohort|school|program], scopeId)
-- `enrollments` (id, programId, cohortId, studentUserId, status, timestamps)
-- `framework_sets` (id, name, standardType[MCCR|PFL|ESSA|MCAP|state], adoptionYear, status)
-- `standards` (id, frameworkSetId, code, description, domain)
-- `exam_blueprints` (id, name, state, version, scoringBands, status)
-- `exam_sections` (id, blueprintId, name)
-- `blueprint_section_standards` (id, sectionId, standardId)
-- **Library / composition**
-  - `library_items` (id, programId, itemType[survey|pretest|posttest|retest|standards_set|blueprint|kb_doc], refId, title, tags, uploadedBy, version, timestamps)
-  - `cohort_config` (id, programId, cohortId, libraryItemId, role, activatedBy, activatedAt)  ← per-cohort plug-in
-- `assessments` (id, programId, type[pretest|posttest|survey|retest], title, deliveryMode[forms|native], timestamps)
-- `assessment_items` (id, assessmentId, prompt, type, correctKey, timestamps)
-- `item_standards` (id, itemId, standardId)
-- `assessment_administrations` (id, programId, studentUserId, assessmentId, type, attemptNumber, startedAt, submittedAt)
-- `item_responses` (id, administrationId, itemId, response, isCorrect, respondedAt)
-- **Behavior telemetry (NEW)**
-  - `item_interaction_events` (id, administrationId, itemId, studentUserId, eventType[view|answer|answer_change|revisit|idle|blur], value, occurredAt)
-  - `item_behavior_summary` (id, administrationId, itemId, answerChangeCount, dwellMs, revisitCount, firstViewAt, finalAnswerAt)  ← rolled up for dashboards/reports
-- `mastery_records` (id, programId, studentUserId, standardId, masteryLevel, evidenceCount, lastEvidenceAt)
-- `readiness_records` (id, programId, studentUserId, blueprintId, sectionId, classification[on_track|watch|gap], computedAt)
-- `growth_records` (id, programId, studentUserId, level[scholar|standard|section|cohort], refId, baselineValue, outcomeValue, delta, computedAt)  ← baseline=lowest first pretest, outcome=highest final posttest
-- `attendance_records` (id, programId, studentUserId, cohortId, date, status, source[planbook|manual], enteredBy, timestamps)
-- `clockin_events` (id, programId, studentUserId, cohortId, occurredAt)
-- `reward_rules` (id, programId, cohortId?, eventType, points, badge, updatedBy, updatedAt)
-- `reward_ledger` (id, programId, studentUserId, ruleId, points, awardedAt)
-- `kb_library_entries` (id, programId, source[ESSA|WWC|CASEL|MCAP|upload|...], title, strategyType, tags, appliesToStandardId?, appliesToSectionId?, uploadedBy, version, timestamps)
-- `decision_matrix_rules` (id, programId, cohortId?, gapSignal, readinessSignal, behaviorSignal?, strategyRank, kbEntryId, updatedBy, updatedAt)
-- `recommendations` (id, programId, studentUserId, matrixRuleId, status[surfaced|selected|implemented], selectedBy, implementedAt)
-- `report_exports` (id, programId, cohortId?, reportType[21stCCLC|MSDE|evaluator], generatedBy, generatedAt, payloadRef)
-- `audit_events` (id, programId, actorUserId, actorTier, actorPersona, action, entityType, entityId, metadataJson, ipAddress, userAgent, createdAt)
-- `feature_flags` (id, programId, cohortId?, key, enabled, configJson, updatedBy, updatedAt)
+> **OPEN (§19):** confirm whether V1 Digital Dollars should already include a **saving/budgeting** framing (to reinforce financial literacy) or stay simple earn-and-display for now.
 
 ---
 
-## 16. Compliance framework (build framework, not legal certification)
+## 14. Reporting — audit-ready; confidence, behavior, and supporting growth
 
-Student data on minors — FERPA is the spine; 21st CCLC reporting is a target output. This is the build framework, not a legal opinion.
+Reports lead with **the confidence score and behavior signals**, supported by readiness and score ranges. Cohort and individual exports target **21st CCLC**, **MSDE**, and the **program evaluator**. FERPA- and 21st-CCLC-compliant by design. Reporting reads the same records that run the dashboards.
+
+---
+
+## 15. Core workflow (six stages)
+
+1. **Set up the cohort.** Super-admin composes the cohort from the library (§10): surveys, pre/post-tests, retests, standards sets, blueprint, activities, knowledge entries.
+2. **Build/attach assessments (native).** Items authored/tagged to standards + exam sections; delivered natively so behavior is captured.
+3. **Capture the data.** Scholars complete pre-test at intake, post-test at close; **behavior telemetry captured throughout**; surveys + activity actions + observations attach. Attendance from Planbook/manual. All student-side actions timestamped.
+4. **Map and score.** Item results → mastery by standard → readiness by section. **Confidence score computed from behavior (primary);** lowest/highest pre & post scores retained (supplementary).
+5. **Recommend.** The decision matrix ranks strategies (gap + confidence/behavior + library KB); instructor selects and implements.
+6. **Report.** Confidence + behavior + readiness (+ supporting score ranges) export into 21st CCLC, MSDE, evaluator formats.
+
+---
+
+## 16. Data model (core tables, draft)
+
+Scope: one program — multi-scholar, multi-cohort, multi-instructor, multi-school, eventually multi-state. Scope enforced by school/cohort relationships; `programId` supports future multi-state isolation.
+
+- `programs` · `schools` · `cohorts` · `users` (tier[user|admin|super_admin], persona) · `student_profiles` · `parent_links` · `staff_assignments` · `enrollments`
+- **Standards & exams:** `framework_sets` (standardType[MCCR|PFL|ESSA|MCAP|state]) · `standards` · `exam_blueprints` · `exam_sections` · `blueprint_section_standards`
+- **Library / composition:** `library_items` (itemType[survey|pretest|posttest|retest|standards_set|blueprint|activity|kb_doc]) · `cohort_config`
+- **Assessments:** `assessments` (type, deliveryMode default **native**) · `assessment_items` (type, correctKey) · `item_standards` · `assessment_administrations` (type, attemptNumber, startedAt, submittedAt) · `item_responses` (response, isCorrect, respondedAt)
+- **Behavior telemetry:** `item_interaction_events` (eventType[view|answer|answer_change|revisit|idle|blur|latency], value, occurredAt) · `item_behavior_summary` (answerChangeCount, dwellMs, revisitCount, latencyMs, firstViewAt, finalAnswerAt)
+- **Confidence (NEW, primary):** `confidence_scores` (id, programId, studentUserId, scope[scholar|standard|section], refId, score, band, inputsJson, model_version, computedAt)
+- **Activities (NEW, §8):** `activities` (id, programId, source[d2d_money_hub|internal], title, externalRef, type, timestamps) · `activity_assignments` (id, programId, cohortId, activityId, assignedBy, timestamps) · `activity_events` (id, programId, studentUserId, activityId, eventType, value, occurredAt)
+- **Score & readiness:** `mastery_records` · `readiness_records` (classification[on_track|watch|gap]) · `score_summary` (id, programId, studentUserId, lowestPre, highestPre, lowestPost, highestPost, computedAt) *(supplementary; all attempts remain in `assessment_administrations`)*
+- **Attendance & rewards:** `attendance_records` (source[planbook|manual]) · `clockin_events` · `reward_rules` (eventType, digitalDollars, badge, cohortId?) · `reward_ledger` (studentUserId, digitalDollars, reason, awardedAt)
+- **Recommendations & KB:** `kb_library_entries` · `decision_matrix_rules` (gapSignal, readinessSignal, confidenceSignal?, behaviorSignal?, strategyRank, kbEntryId) · `recommendations` (status[surfaced|selected|implemented])
+- **Platform:** `report_exports` (reportType[21stCCLC|MSDE|evaluator]) · `audit_events` · `feature_flags`
+
+---
+
+## 17. Compliance framework (build framework, not legal certification)
+
+Student data on minors — FERPA is the spine; 21st CCLC reporting is a target output.
 
 - **FERPA-by-design:** data minimization; role/persona-scoped access; parents see only their own child; least privilege; **delete/core-function mutations super_admin only**; no cross-scope access except super_admin.
-- **Timestamp everything student-side** — including behavior telemetry — immutable.
-- **Audit logging:** every sensitive action (framework/blueprint load, library upload, cohort config change, matrix change, score entry/override, recommendation implemented, reward-rule change, deletion, user provisioning, report export, role change) writes an `audit_event`.
-- **Data controls (placeholders for V1):** export scholar data; deactivate/delete; retention policy table. Policy text requires legal review.
-- **Security:** server-side validation; schema validation on all mutations; DB constraints; no frontend secrets; protected routes; rate limiting on auth-sensitive endpoints; error monitoring.
-- **SMS consent (noted):** any SMS reminder feature requires TCPA-style opt-in/opt-out per D2D's SMS & Privacy Policy. Out of V1 platform scope unless confirmed.
+- **Timestamp everything student-side** — including behavior telemetry and activity events — immutable.
+- **Behavior data is sensitive.** Confidence scores and behavior signals are inferences about minors; treat them as protected records, disclosed only within scope, and documented in the data map. Avoid over-interpreting a behavioral inference as a fixed judgment about a child.
+- **Audit logging:** every sensitive action writes an `audit_event`.
+- **Data controls (V1 placeholders):** export, deactivate/delete, retention table. Policy text requires legal review.
+- **Security:** governed by `docs/SECURITY-BASELINE.md` (server-side validation, RLS, no frontend secrets, rate limiting, headers, etc.).
+- **SMS consent (noted):** any SMS feature requires TCPA-style opt-in/opt-out. Out of V1 unless confirmed.
 
 ---
 
-## 17. Phases
+## 18. Phases
 
-**Phase 1 (MVP / V1).** Instructor + super-admin dashboards (simplified, elegant, plain-language); cohort roster + single-student views; super-admin cohort library + per-cohort config; MCAP mapping (+ ESSA/MD PFL/MCCR standards sets); pre/post growth (lowest-first-pre → highest-final-post); **assessment behavior analytics** (Forms-limited fidelity); fixed decision-matrix recommendations from the KB library; Planbook + manual attendance; clock-in (rewards/data); reward system; 3-tier RBAC with read-only stakeholder; timestamping; audit; 21st CCLC / MSDE / evaluator exports.
+**Phase 1 (MVP / V1).** Instructor + super-admin dashboards (simplified, plain-language); cohort roster + single-student views; super-admin cohort library + per-cohort config; MCAP mapping (+ ESSA/MD PFL/MCCR sets); **native assessment delivery**; **full behavior telemetry + confidence score (primary)**; supplementary pre/post score ranges; fixed decision-matrix recommendations; Planbook + manual attendance; clock-in; **Digital Dollars** rewards; 3-tier RBAC with read-only stakeholder; timestamping; audit; 21st CCLC / MSDE / evaluator exports. **D2D Money Hub activity integration — pending scope confirmation (§8).**
 
-**Phase 2.** Additional state-exam blueprints; **native assessment delivery** (full behavior-telemetry fidelity); deeper analytics; Financial Literacy Vortex mapping (candidate).
+**Phase 2.** Additional state-exam blueprints; deeper analytics; richer activity tracking; Financial Literacy Vortex mapping (candidate); Digital Dollars saving/redemption mechanics (candidate).
 
-**Phase 3.** Predictive modeling on accumulated data; multi-state operation; expanded scholar/parent surfaces; feeds the LRNEX/Prysm/Audacity product roadmap.
-
----
-
-## 18. Open decisions for review (consolidated)
-
-**Resolved in v0.2:** engine relationship (§1), stakeholder/evaluator + instructor limits (§3), growth rule (§6.2), Vortex → V2 (§6.3), clock-in purpose (§4/§11).
-
-**Still open:**
-1. **Behavior-telemetry V1 fidelity** — how much dwell/answer-change data from Google Forms vs. waiting for native delivery? Proposed: Forms-limited now + light native wrapper where feasible; full fidelity Phase 2. (§7)
-2. **Growth wording** — confirm "lowest first pretest → highest final posttest" means lowest among pretest attempts and highest among posttest attempts (proposed), vs strictly chronological first/last administration. (§6.2)
-3. **Rewards** — virtual-only V1 (proposed) or real-world redemption? (§12)
-4. **SMS notifications** — in V1 (requires consent workflow) or deferred? (§16)
-5. **Career-tendency mapping** — the email/notes mention mapping to career tendencies as a learning goal. Confirm this is a forward-looking R&D output (Phase 2+), not a V1 dashboard feature. (§1)
+**Phase 3.** Predictive modeling; multi-state operation; expanded scholar/parent surfaces; feeds the LRNEX/Prysm/Audacity roadmap.
 
 ---
 
-## 19. Non-goals / out of scope for V1
+## 19. Open decisions for review
 
-- LRNEX / Prysm / Audacity as products (this build informs them; it does not deliver them).
-- Predictive readiness modeling (Phase 3).
-- Native in-app assessment authoring/delivery (Phase 2 — Google Forms in V1).
+**Resolved in v0.3:** behavior fidelity → **native delivery in V1** (§5, §7); primary measure → **confidence score**, score ranges supplementary (§6, §7); rewards → **virtual Digital Dollars** (§13).
+
+**Still open — need input before build of the affected module:**
+1. **Confidence-score definition** — which behavior signals, weights, and scale produce the score. Product decision with Whitney. Blocks the confidence-score module, not the foundation. (§7.2)
+2. **D2D Money Hub activity integration** — V1 or fast-follow, and the technical approach (embed vs deep-link+wrapper vs native rebuild), which sets behavior-tracking fidelity. (§8)
+3. **Digital Dollars framing** — simple earn-and-display in V1, or already include a saving/budgeting mechanic to reinforce financial literacy? (§13)
+4. **SMS notifications** — in V1 (needs consent workflow) or deferred? (§17)
+5. **Career-tendency mapping** — confirmed forward-looking (Phase 2+), not a V1 feature. (§1)
+
+---
+
+## 20. Non-goals / out of scope for V1
+
+- LRNEX / Prysm / Audacity as products (this build informs them).
+- Predictive modeling (Phase 3).
 - Financial Literacy Vortex mapping (V2 candidate).
 - Multi-state operation (architecture supports it; not exercised in V1).
-- Student-facing content, lessons, or generative AI tutor (students only test/survey/clock-in/rewards).
-- Real-world reward fulfillment/redemption economy.
+- Student-facing content/lessons/generative AI tutor (students only test/survey/clock-in/rewards/assigned activities).
+- Real-world reward redemption/fulfillment (Digital Dollars are virtual in V1).
 - SMS notification system (unless confirmed with consent workflow).
 - Full legal/FERPA certification, DPA, accessibility audit, pen test (post-MVP gates).
 
 ---
 
-## 20. Known limitations (state plainly)
+## 21. Known limitations (state plainly)
 
 - Not production-ready; not FERPA-certified; not a completed compliance package.
 - Recommendations are a fixed rules matrix, not predictive.
-- Assessment delivery is Google Forms ingestion in V1; behavior-telemetry fidelity is limited until native delivery.
-- Standards/blueprint coverage = MCCR Math, MD PFL, ESSA, and MCAP at launch; other frameworks/exams load later.
+- The **confidence-score formula is provisional** until defined with Whitney and validated against real behavior data.
+- Behavior tracking for **externally embedded** Money Hub activities will be lower-fidelity than natively delivered content.
+- Standards/blueprint coverage = MCCR Math, MD PFL, ESSA, MCAP at launch.
 - Accessibility and security are designed-in but not yet audited/pen-tested.
 
 ---
 
-## 21. Notes
+## 22. Notes
 
-Accurate for a build window starting on approval. A product and engineering specification for a pilot-ready build — **not** a compliance certification, legal opinion, or procurement checklist. Update only after piloting, legal review, or major architectural change. Where this document and Whitney's email differ, the meeting notes were treated as authoritative and the differences are flagged inline.
+Accurate for a build window starting on approval. A product and engineering specification for a pilot-ready build — **not** a compliance certification, legal opinion, or procurement checklist. Update only after piloting, legal review, or major architectural change. The companion `docs/D2D-LOGIC-MODEL` artifact was written when growth was framed as the primary outcome and should be refreshed to lead with the confidence score.
