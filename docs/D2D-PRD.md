@@ -1,6 +1,6 @@
 # D2D Student Growth Platform — PRD + Architecture Spec
 
-**Version:** 0.3 (review-ready draft)
+**Version:** 0.4 (review-ready draft)
 **Status:** Pilot-ready build specification — NOT compliance-certified production
 **Product:** D2D Student Growth Platform ("LMS D2D")
 **Client / Program Owner:** Diapers 2 Deposits, Inc. (D2D)
@@ -13,6 +13,11 @@
 ---
 
 ## 0. Changelog
+
+### v0.3 → v0.4 (measurement + integration decisions)
+- **Confidence-score signals, noise-handling methodology, and scale defined (§7).** Signals confirmed (time-to-answer, answer changes, lingering, hint usage, revisits) plus recommended additions; a methodology that avoids misreading non-cognitive pauses; weights kept as an intentional, validated tuning experiment; an ordinal Shaky / Building / Secure (+ Insufficient signal) scale.
+- **D2D Money Hub integration set (§8).** Whitney wants it, in V1. Approach for the existing standalone HTML activities: serve from a controlled activities origin, sandboxed iframe, `postMessage` tracking SDK.
+- **Digital Dollars = simple earn-and-display (§13).** SMS deferred from V1 (§17). Career mapping → Phase II, with a separate Whitney-facing brief.
 
 ### v0.2 → v0.3 (behavior-first reframe)
 - **Primary measure is now behavior, not test-score growth (§6, §7).** Whitney wants the platform centered on *how scholars behave and act*. A comparative analysis of behavior becomes a **confidence score** — the headline outcome. Test scores are still collected (lowest **and** highest pre, lowest **and** highest post) but are **supplementary, not the primary growth metric.**
@@ -153,9 +158,28 @@ This is the heart of v0.3. D2D cares most about *how* scholars behave, and turns
 - (Extensible — the telemetry model allows new signal types without a schema rebuild.)
 
 ### 7.2 The confidence score (the headline output)
-A **comparative analysis of behavior signals becomes a per-scholar confidence score** — a measure of how *secure* a scholar's responses are, distinct from raw correctness. It is computed by comparing a scholar's behavior across items, attempts, over time, and (where meaningful) against cohort norms. Surfaced per scholar and, where possible, per standard/section, on the dashboards and in reports.
+A **comparative analysis of behavior signals becomes a per-scholar confidence score** — how *secure* a scholar's responses are, distinct from raw correctness — computed across items, attempts, and over time.
 
-> **OPEN — needs Whitney's input (§19):** the exact **confidence-score definition** — which signals, weighted how, on what scale (e.g., 0–100 or Low/Building/Solid). Proposed starting model: a weighted composite of hesitation (dwell), second-guessing (answer changes), latency, and persistence, normalized per item difficulty and compared over time. **This formula is a product decision, not a default to assume.**
+**Signals (V1).** Confirmed with Whitney, plus recommended additions:
+- **Time to answer** (response latency)
+- **Answer changes** — and their *direction* (wrong→right vs right→wrong is very informative)
+- **Lingering / dwell** per item
+- **Hint usage** — asked for a hint or not
+- **Revisits** — going back to an answer as if unsure
+- *Recommended additions:* **first-attempt correctness** (right without changing); **final correctness** (the anchor — confidence is read *relative to* whether they got it right); **idle/blur events** (window/tab focus loss — used to *exclude* non-cognitive pauses); a **light periodic self-report** ("how sure are you?") to calibrate the behavioral model; **consistency** across same-standard items; and **trajectory over time**.
+
+**Handling the noise problem (Whitney's concern — a pause may be thinking *or* tying a shoe).** The methodology is built to avoid misreading noise as low mastery:
+1. **Exclude probable non-cognitive time.** Idle/blur detection subtracts "away" time (no interaction events, or the window lost focus); cap/winsorize outlier dwell so one long pause can't dominate.
+2. **Normalize per scholar and per item difficulty.** Use deviation from the scholar's *own* baseline, not absolute seconds — a generally-slow scholar isn't "low confidence."
+3. **Require convergence.** Flag low confidence only when *several* signals agree, never one alone.
+4. **Anchor to correctness + the self-report.** Behavior is interpreted against whether the answer was right and how sure the scholar said they were.
+5. **Measure change, not a snapshot.** Growth = these signals improving over repeated exposure; comparing a scholar to themselves over time sidesteps much of the noise.
+6. **Report uncertainty honestly.** An explicit **"Insufficient signal"** state when data is sparse or noisy, instead of a misleading score.
+7. **Weights are the experiment.** Start with equal-ish weights on the corroborating signals, log every raw signal, and **validate** — correlate behavioral confidence against later correctness and teacher judgment, then tune. Weights are configurable and versioned (`confidence_scores.model_version`).
+
+**Scale (recommended).** Human-facing **ordinal bands — Shaky / Building / Secure — plus Insufficient signal**, backed by an internal 0–1 score; drill-down shows the contributing signals. Bands map to the On Track / Watch / Gap language teachers already use and avoid false precision.
+
+Surfaced per scholar and, where possible, per standard/section, on the dashboards and in reports.
 
 ### 7.3 Uses
 - Instructor dashboard flags ("low confidence + changed answer 3× on a Gap standard").
@@ -167,13 +191,20 @@ A **comparative analysis of behavior signals becomes a per-scholar confidence sc
 
 ## 8. D2D Money Hub activity integration (NEW — scope to confirm)
 
-Whitney may want to **surface existing D2D Money Hub activities and programs *through* the LMS** and have the LMS **track scholar behavior across those actions** — extending behavior analytics beyond assessments into program activities.
+Whitney **wants** the D2D Money Hub integration, **in V1**: **surface existing Money Hub activities/programs *through* the LMS** and **track scholar behavior across those actions** — extending behavior analytics beyond assessments.
 
-- **Catalog:** activities/programs registered as library items the super admin can assign to cohorts.
+- **Catalog:** activities registered as library items the super admin assigns to cohorts.
 - **Access:** scholars reach assigned activities from the student surface.
-- **Tracking:** the platform records scholar **actions and behavior across activities** (opens, time-on-activity, steps completed, choices made) as timestamped events, feeding the behavior picture and confidence score.
+- **Tracking:** the platform records scholar actions across activities (open, time-on-task, interactions, steps completed, choices, idle/blur) as timestamped `activity_events`, feeding the behavior picture and confidence score.
 
-> **OPEN — scope + approach to confirm (§19):** is this **V1 or a fast-follow**, and what is the technical approach — embed (iframe), deep-link with a tracking wrapper, or native re-build of activities? Fidelity of behavior tracking depends heavily on that choice (an external embed exposes far less than a native/wrapped activity).
+**Integration approach (recommended).** The activities are today **standalone HTML files** hosted on a site. Recommended path — reuse them, don't rebuild:
+1. **Serve each activity from a D2D-controlled *activities* origin** (e.g., `activities.d2dmoneyhub.com`, or the LMS's object storage) — the existing HTML files, unchanged in substance.
+2. **Embed in a sandboxed iframe** inside an LMS *activity player* route. The `sandbox` attribute isolates the activity from the LMS auth/session, and the separate origin keeps it from touching LMS data — so a compromised or third-party activity can't reach student records.
+3. **Inject a small `postMessage` tracking SDK** (one `<script>` tag per HTML file) that emits structured behavior events to the LMS parent frame, which accepts them only from the known activities origin (strict origin check). Activities that add richer event hooks emit richer data; those that don't still yield open, time-on-task, completion, and idle/blur.
+
+**V1 minimum per activity:** open, time-on-task, completion, idle/blur; per-interaction hooks added incrementally. This reuses the existing HTML, gives *real* behavior telemetry (a bare cross-origin iframe with no SDK would expose almost nothing), and stays secure via sandbox + origin-checked `postMessage`.
+
+> One-time effort: adding the tracking `<script>` tag to each HTML activity (or serving them through a wrapper that injects it). Trivial per file; the payoff is genuine cross-activity behavior data feeding the confidence score. **Security note:** review/sanitize each HTML file before serving it (see `docs/SECURITY-BASELINE.md`), since D2D will host them.
 
 ---
 
@@ -241,9 +272,7 @@ Virtual, financial-literacy-themed reward currency.
 - **Ledger:** per-scholar Digital Dollars balance, timestamped and auditable.
 - **Scholar view:** current balance + badges.
 
-**Virtual only in V1** — no real-world redemption/fulfillment. The financial-literacy theme (a scholar *earns* and can later *save* Digital Dollars) is intentional reinforcement of the program's content; a future phase may add saving/budgeting mechanics or redemption.
-
-> **OPEN (§19):** confirm whether V1 Digital Dollars should already include a **saving/budgeting** framing (to reinforce financial literacy) or stay simple earn-and-display for now.
+**Virtual only in V1 — simple earn-and-display.** Scholars earn Digital Dollars on defined events and see their balance and badges. No saving/budgeting mechanic and no real-world redemption in V1. A saving/budgeting layer (to reinforce financial literacy) and any redemption are **Phase II** candidates.
 
 ---
 
@@ -298,7 +327,7 @@ Student data on minors — FERPA is the spine; 21st CCLC reporting is a target o
 
 ## 18. Phases
 
-**Phase 1 (MVP / V1).** Instructor + super-admin dashboards (simplified, plain-language); cohort roster + single-student views; super-admin cohort library + per-cohort config; MCAP mapping (+ ESSA/MD PFL/MCCR sets); **native assessment delivery**; **full behavior telemetry + confidence score (primary)**; supplementary pre/post score ranges; fixed decision-matrix recommendations; Planbook + manual attendance; clock-in; **Digital Dollars** rewards; 3-tier RBAC with read-only stakeholder; timestamping; audit; 21st CCLC / MSDE / evaluator exports. **D2D Money Hub activity integration — pending scope confirmation (§8).**
+**Phase 1 (MVP / V1).** Instructor + super-admin dashboards (simplified, plain-language); cohort roster + single-student views; super-admin cohort library + per-cohort config; MCAP mapping (+ ESSA/MD PFL/MCCR sets); **native assessment delivery**; **full behavior telemetry + confidence score (primary)**; supplementary pre/post score ranges; fixed decision-matrix recommendations; Planbook + manual attendance; clock-in; **Digital Dollars** rewards; 3-tier RBAC with read-only stakeholder; timestamping; audit; 21st CCLC / MSDE / evaluator exports; **D2D Money Hub activity integration** (sandboxed-iframe + `postMessage` tracking over the existing HTML).
 
 **Phase 2.** Additional state-exam blueprints; deeper analytics; richer activity tracking; Financial Literacy Vortex mapping (candidate); Digital Dollars saving/redemption mechanics (candidate).
 
@@ -308,14 +337,11 @@ Student data on minors — FERPA is the spine; 21st CCLC reporting is a target o
 
 ## 19. Open decisions for review
 
-**Resolved in v0.3:** behavior fidelity → **native delivery in V1** (§5, §7); primary measure → **confidence score**, score ranges supplementary (§6, §7); rewards → **virtual Digital Dollars** (§13).
+**Resolved in v0.4:** confidence-score signals, noise-handling methodology, and scale (§7 — *weights remain an intentional tuning experiment, validated against later correctness and teacher judgment; ongoing activity, not a build blocker*); Money Hub integration → **in V1**, sandboxed-iframe + `postMessage` tracking SDK over the existing HTML (§8); Digital Dollars → **simple earn-and-display** (§13); **SMS deferred** from V1 (§17); **career mapping → Phase II**, with a separate Whitney-facing brief.
 
-**Still open — need input before build of the affected module:**
-1. **Confidence-score definition** — which behavior signals, weights, and scale produce the score. Product decision with Whitney. Blocks the confidence-score module, not the foundation. (§7.2)
-2. **D2D Money Hub activity integration** — V1 or fast-follow, and the technical approach (embed vs deep-link+wrapper vs native rebuild), which sets behavior-tracking fidelity. (§8)
-3. **Digital Dollars framing** — simple earn-and-display in V1, or already include a saving/budgeting mechanic to reinforce financial literacy? (§13)
-4. **SMS notifications** — in V1 (needs consent workflow) or deferred? (§17)
-5. **Career-tendency mapping** — confirmed forward-looking (Phase 2+), not a V1 feature. (§1)
+**Resolved in v0.3:** native delivery in V1; confidence score as primary measure; virtual Digital Dollars.
+
+**No remaining blockers to the V1 build.** The confidence-score *weights* are tuned empirically during and after the pilot — the module ships with sensible defaults and full signal logging. The Money Hub activity HTML files must be handed over for review/serving.
 
 ---
 
@@ -345,4 +371,4 @@ Student data on minors — FERPA is the spine; 21st CCLC reporting is a target o
 
 ## 22. Notes
 
-Accurate for a build window starting on approval. A product and engineering specification for a pilot-ready build — **not** a compliance certification, legal opinion, or procurement checklist. Update only after piloting, legal review, or major architectural change. The companion `docs/D2D-LOGIC-MODEL` artifact was written when growth was framed as the primary outcome and should be refreshed to lead with the confidence score.
+Accurate for a build window starting on approval. A product and engineering specification for a pilot-ready build — **not** a compliance certification, legal opinion, or procurement checklist. Update only after piloting, legal review, or major architectural change. The companion **D2D Logic Model** artifact has been refreshed to lead with the confidence score. A separate **Career Mapping brief** (a Whitney-facing artifact) proposes career mapping for Phase II.
