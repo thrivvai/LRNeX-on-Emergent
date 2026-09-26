@@ -57,14 +57,17 @@ Deno.serve(async (req) => {
   if (configError || !config.success) return json({ error: "score_configuration_unavailable" }, 503);
   const derivationVersion = config.data.version;
 
-  const { data: existing } = await admin.from("confidence_results").select("id,band,score,abstained,abstention_reason,derivation_version").eq("source_attempt_id", attempt.id).eq("derivation_version", derivationVersion).maybeSingle();
-  if (existing) return json({ result: existing, idempotent: true });
-
+  // Authorize before any result read: this function uses the service-role client (RLS-bypassing),
+  // so this check is the only access gate. Must run before the idempotency short-circuit below,
+  // otherwise a non-owner could read another scholar's confidence result for an already-scored attempt.
   const { data: scholar } = await admin.from("scholars").select("auth_user_id").eq("id", attempt.scholar_id).maybeSingle();
   const { data: membership } = await admin.from("program_memberships").select("role").eq("program_id", attempt.program_id).eq("user_id", userData.user.id).eq("status", "active").maybeSingle();
   const isOwner = scholar?.auth_user_id === userData.user.id;
   const isStaff = Boolean(membership && ["admin", "instructor", "researcher"].includes(membership.role));
   if (!isOwner && !isStaff) return json({ error: "not_authorized" }, 403);
+
+  const { data: existing } = await admin.from("confidence_results").select("id,band,score,abstained,abstention_reason,derivation_version").eq("source_attempt_id", attempt.id).eq("derivation_version", derivationVersion).maybeSingle();
+  if (existing) return json({ result: existing, idempotent: true });
 
   const { data: responses, error: responseError } = await admin.from("assessment_responses").select("item_id,response_value,revision_number,is_final").eq("attempt_id", attempt.id).order("revision_number", { ascending: false });
   if (responseError) return json({ error: "responses_unavailable" }, 500);
