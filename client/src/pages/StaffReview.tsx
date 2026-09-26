@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { supabase } from "@/lib/supabase";
 
-const ADMIN_AUTH_REDIRECT_URL = "https://3000-iwlorua17w1bmd0x25pxk-0b34654e.us1.manus.computer/admin";
+const ADMIN_AUTH_REDIRECT_URL = typeof window === "undefined" ? "/admin" : `${window.location.origin}/admin`;
 
 function StaffChrome({ children }: { children: React.ReactNode }) {
   return <div className="staff-review"><header className="staff-review__header"><Link href="/" className="journey-brand"><span className="journey-brand__glyph"><i /><i /><i /></span><span><strong>D2D</strong><small>student growth</small></span></Link><span><ShieldCheck size={14} /> RLS-scoped research workspace</span></header>{children}</div>;

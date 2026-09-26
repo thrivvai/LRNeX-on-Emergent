@@ -2,7 +2,7 @@ import { ArrowRight, Check, CircleHelp, Clock3, LockKeyhole, RefreshCw, Sparkles
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "wouter";
 import { supabase } from "@/lib/supabase";
-import { normalizeAccessCode, PILOT_APP_VERSION } from "@shared/pilot";
+import { isPlausibleAccessCode, normalizeAccessCode, PILOT_APP_VERSION } from "@shared/pilot";
 
 type Scholar = { id: string; pseudonym: string; programId: string; cohortId: string };
 type AssessmentItem = { id: string; item_order: number; prompt: string; choices: Array<{ id: string; label: string }> };
@@ -35,8 +35,10 @@ function AccessGate({ onSuccess }: { onSuccess: (scholar: Scholar) => void }) {
     event.preventDefault(); setBusy(true); setError("");
     const { error: authError } = await supabase.auth.signInAnonymously();
     if (authError) { setError("Student sessions are not enabled yet. Enable Anonymous Sign-Ins in Supabase Auth, then try again."); setBusy(false); return; }
-    const { data, error: functionError } = await supabase.functions.invoke("redeem-student-access-code", { body: { code: normalizeAccessCode(code) } });
-    if (functionError || !data?.scholar) { setError(functionError?.message ?? (data?.error === "invalid_or_expired_code" ? "That access code is not active." : "We could not verify that code.")); setBusy(false); return; }
+    const normalizedCode = normalizeAccessCode(code);
+    if (!isPlausibleAccessCode(normalizedCode)) { setError("Enter the full access code your instructor gave you."); setBusy(false); return; }
+    const { data, error: functionError } = await supabase.functions.invoke("redeem-student-access-code", { body: { code: normalizedCode } });
+    if (functionError || !data?.scholar) { setError(data?.error === "too_many_attempts" ? "Too many tries. Please wait 15 minutes before trying again." : data?.error === "invalid_or_expired_code" ? "That access code is not active." : "We could not verify that code."); setBusy(false); return; }
     localStorage.setItem("d2d-scholar", JSON.stringify(data.scholar));
     onSuccess(data.scholar); setBusy(false);
   }
