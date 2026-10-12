@@ -1,4 +1,4 @@
-import { ArrowRight, Check, CircleHelp, Clock3, LockKeyhole, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowRight, BookOpen, Check, CircleHelp, Clock3, LockKeyhole, RefreshCw, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import { supabase } from "@/lib/supabase";
@@ -26,7 +26,7 @@ async function logEvent(context: EventContext, eventType: PilotEventType, payloa
 }
 
 function JourneyChrome({ children, scholar, onReset }: { children: React.ReactNode; scholar?: Scholar; onReset?: () => void }) {
-  return <div className="journey-page"><header className="journey-header"><Link href="/" className="journey-brand"><span className="journey-brand__glyph"><i /><i /><i /></span><span><strong>D2D</strong><small>student growth</small></span></Link><div className="journey-header__meta">{scholar ? <><span className="journey-user">{scholar.pseudonym}</span><button className="journey-reset" onClick={onReset}>Reset demo</button></> : <span><LockKeyhole size={13} /> Private pilot space</span>}</div></header>{children}</div>;
+  return <div className="journey-page"><header className="journey-header"><Link href="/" className="journey-brand"><span className="journey-brand__glyph"><i /><i /><i /></span><span><strong>D2D</strong><small>student growth</small></span></Link><div className="journey-header__meta">{scholar ? <><Link href="/student/curriculum" className="journey-curriculum-link"><BookOpen size={13} /> My modules</Link><span className="journey-user">{scholar.pseudonym}</span><button className="journey-reset" onClick={onReset}>Reset demo</button></> : <span><LockKeyhole size={13} /> Private pilot space</span>}</div></header>{children}</div>;
 }
 
 function AccessGate({ onSuccess }: { onSuccess: (scholar: Scholar) => void }) {

@@ -5,17 +5,21 @@ import NotFound from "@/pages/NotFound";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
-import Home from "./pages/Home";
-import StudentJourneyPage from "./pages/StudentJourney";
-import StaffReview from "./pages/StaffReview";
+import Home from "@/pages/Home";
+import StudentJourneyPage from "@/pages/StudentJourney";
+import CurriculumPage from "@/pages/Curriculum";
+import StaffReview from "@/pages/StaffReview";
+import TelemetrySpike from "@/pages/TelemetrySpike";
 
 function Router() {
   return (
     <Switch>
       <Route path={STAGE_ONE_ROUTES.landing} component={Home} />
       <Route path={STAGE_ONE_ROUTES.studentHome} component={StudentJourneyPage} />
+      <Route path="/student/curriculum" component={CurriculumPage} />
       <Route path={STAGE_ONE_ROUTES.representativeLesson} component={StudentJourneyPage} />
       <Route path={STAGE_ONE_ROUTES.staffAnalytics} component={StaffReview} />
+      <Route path="/telemetry-spike" component={TelemetrySpike} />
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />
     </Switch>
