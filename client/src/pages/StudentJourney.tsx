@@ -1,8 +1,9 @@
 import { ArrowRight, Check, CircleHelp, Clock3, LockKeyhole, RefreshCw, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import { supabase } from "@/lib/supabase";
-import { isPlausibleAccessCode, normalizeAccessCode, PILOT_APP_VERSION } from "@shared/pilot";
+import { insertTelemetryEvent, flushTelemetryQueue } from "@/lib/telemetry";
+import { HEARTBEAT_INTERVAL_MS, IDLE_THRESHOLD_MS, isPlausibleAccessCode, normalizeAccessCode, PILOT_APP_VERSION, type PilotEventType } from "@shared/pilot";
 
 type Scholar = { id: string; pseudonym: string; programId: string; cohortId: string };
 type AssessmentItem = { id: string; item_order: number; prompt: string; choices: Array<{ id: string; label: string }> };
@@ -15,11 +16,12 @@ const appVersion = PILOT_APP_VERSION;
 function nowIso() { return new Date().toISOString(); }
 function newSessionId() { return crypto.randomUUID(); }
 
-async function logEvent(context: EventContext, eventType: string, payload: Record<string, unknown>, lessonId?: string, attemptId?: string) {
-  await supabase.from("learning_events").insert({
+async function logEvent(context: EventContext, eventType: PilotEventType, payload: Record<string, unknown>, lessonId?: string, attemptId?: string, itemId?: string) {
+  return insertTelemetryEvent({
     event_id: crypto.randomUUID(), program_id: context.scholar.programId, cohort_id: context.scholar.cohortId,
     scholar_id: context.scholar.id, session_id: context.sessionId, event_seq: context.seq++, event_type: eventType,
-    lesson_id: lessonId ?? null, attempt_id: attemptId ?? null, occurred_at_client: nowIso(), client_monotonic_ms: Math.round(performance.now()), payload, app_version: appVersion,
+    event_version: "2", lesson_id: lessonId ?? null, attempt_id: attemptId ?? null, item_id: itemId ?? null,
+    occurred_at_client: nowIso(), client_monotonic_ms: Math.round(performance.now()), payload, app_version: appVersion,
   });
 }
 
@@ -45,11 +47,24 @@ function AccessGate({ onSuccess }: { onSuccess: (scholar: Scholar) => void }) {
   return <JourneyChrome><main className="journey-gate"><div className="journey-gate__stamp"><Sparkles size={19} /> RESEARCH PILOT / STUDENT ENTRY</div><h1>Bring your<br /><em>curiosity.</em></h1><p>Enter the access code your instructor gave you. No student name or school email is needed for this pilot.</p><form onSubmit={redeem} className="code-form"><label htmlFor="student-code">Your access code</label><input id="student-code" value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} placeholder="D2D-DEMO-01" autoComplete="one-time-code" required /><button className="button button--primary" disabled={busy}>{busy ? "Checking…" : "Enter the learning space"}<ArrowRight size={16} /></button></form>{error && <div className="journey-error" role="alert">{error}</div>}<div className="journey-gate__note"><CircleHelp size={15} /> Your work is identified by a pilot pseudonym, not your name.</div></main></JourneyChrome>;
 }
 
-function AssessmentCard({ assessment, onSubmit, label }: { assessment: Assessment; onSubmit: (answers: Record<string, string>) => Promise<void>; label: string }) {
+function AssessmentCard({ assessment, onSubmit, label, onTelemetry }: { assessment: Assessment; onSubmit: (answers: Record<string, string>, revisions: Record<string, number>) => Promise<void>; label: string; onTelemetry: (eventType: PilotEventType, payload: Record<string, unknown>, itemId?: string) => void }) {
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const revisions = useRef<Record<string, number>>({});
+  const itemNodes = useRef<Record<string, HTMLFieldSetElement | null>>({});
   const complete = assessment.items.every((item) => answers[item.id]);
-  return <section className="journey-card assessment-card"><div className="journey-card__kicker">{label} <span><Clock3 size={13} /> No countdown</span></div><h2>{assessment.title}</h2><p className="journey-card__lede">We are looking at how you notice and work through a decision. There is no penalty for taking your time.</p><div className="assessment-items">{assessment.items.map((item, index) => <fieldset key={item.id}><legend><span>0{index + 1}</span>{item.prompt}</legend><div className="assessment-options">{item.choices.map((choice) => <label key={choice.id} className={answers[item.id] === choice.id ? "is-selected" : ""}><input type="radio" name={item.id} value={choice.id} checked={answers[item.id] === choice.id} onChange={() => setAnswers((current) => ({ ...current, [item.id]: choice.id }))} />{choice.label}{answers[item.id] === choice.id && <Check size={15} />}</label>)}</div></fieldset>)}</div><button className="button button--dark" disabled={!complete || busy} onClick={async () => { setBusy(true); await onSubmit(answers); setBusy(false); }}>{busy ? "Saving…" : "Save and continue"}<ArrowRight size={16} /></button></section>;
+  useEffect(() => {
+    const visible = new Set<string>();
+    const observer = new IntersectionObserver((entries) => entries.forEach((entry) => {
+      const itemId = entry.target.getAttribute("data-item-id");
+      if (!itemId) return;
+      if (entry.isIntersecting && !visible.has(itemId)) { visible.add(itemId); onTelemetry("assessment_item_entered", { source: "intersection_observer" }, itemId); }
+      if (!entry.isIntersecting && visible.has(itemId)) { visible.delete(itemId); onTelemetry("assessment_item_exited", { source: "intersection_observer" }, itemId); }
+    }), { threshold: 0.35 });
+    assessment.items.forEach((item) => { const node = itemNodes.current[item.id]; if (node) observer.observe(node); });
+    return () => observer.disconnect();
+  }, [assessment.items, onTelemetry]);
+  return <section className="journey-card assessment-card"><div className="journey-card__kicker">{label} <span><Clock3 size={13} /> No countdown</span></div><h2>{assessment.title}</h2><p className="journey-card__lede">We are looking at how you notice and work through a decision. There is no penalty for taking your time.</p><div className="assessment-items">{assessment.items.map((item, index) => <fieldset data-item-id={item.id} ref={(node) => { itemNodes.current[item.id] = node; }} key={item.id}><legend><span>{String(index + 1).padStart(2, "0")}</span>{item.prompt}</legend><div className="assessment-options">{item.choices.map((choice) => <label key={choice.id} className={answers[item.id] === choice.id ? "is-selected" : ""}><input type="radio" name={item.id} value={choice.id} checked={answers[item.id] === choice.id} onChange={() => { const previous = answers[item.id] ?? null; const revisionNumber = (revisions.current[item.id] ?? 0) + 1; revisions.current[item.id] = revisionNumber; setAnswers((current) => ({ ...current, [item.id]: choice.id })); onTelemetry(previous ? "answer_changed" : "answer_selected", { previous_value: previous, next_value: choice.id, revision_number: revisionNumber }, item.id); }} />{choice.label}{answers[item.id] === choice.id && <Check size={15} />}</label>)}</div></fieldset>)}</div><button className="button button--dark" disabled={!complete || busy} onClick={async () => { setBusy(true); assessment.items.forEach((item) => onTelemetry("answer_finalized", { final_value: answers[item.id], revision_number: revisions.current[item.id] ?? 0 }, item.id)); await onSubmit(answers, revisions.current); setBusy(false); }}>{busy ? "Saving…" : "Save and continue"}<ArrowRight size={16} /></button></section>;
 }
 
 function LessonCard({ lesson, context, onDone }: { lesson: Lesson; context: EventContext; onDone: () => void }) {
@@ -101,25 +116,55 @@ export default function StudentJourneyPage() {
     if (posttest) localStorage.setItem("d2d-posttest", JSON.stringify({ ...posttest, items: (postItems ?? []) as AssessmentItem[] }));
   })(); }, [scholar]);
   useEffect(() => {
+    if (!context || attemptId || (step !== "pretest" && step !== "posttest")) return;
+    const current = step === "pretest" ? assessment : JSON.parse(localStorage.getItem("d2d-posttest") ?? "null") as Assessment | null;
+    if (current?.id) void startAttempt(current);
+  }, [assessment, attemptId, context, step]);
+  useEffect(() => {
     if (!context) return;
     let idleTimer: number | undefined;
+    let heartbeatTimer: number | undefined;
     let isIdle = false;
-    const emit = (eventType: string, payload: Record<string, unknown>) => { void logEvent(context, eventType, payload, lesson?.id, attemptId ?? undefined); };
+    let isActive = document.visibilityState === "visible";
+    const emit = (eventType: PilotEventType, payload: Record<string, unknown>, itemId?: string) => { void logEvent(context, eventType, payload, lesson?.id, attemptId ?? undefined, itemId); };
+    const setActive = (next: boolean, reason: string) => {
+      if (next === isActive) return;
+      isActive = next;
+      emit(next ? "active_interval_started" : "active_interval_ended", { reason, visibility: document.visibilityState });
+    };
     const resetIdle = () => {
+      setActive(true, "user_activity");
       if (isIdle) { isIdle = false; emit("idle_ended", { reason: "activity" }); }
       window.clearTimeout(idleTimer);
-      idleTimer = window.setTimeout(() => { isIdle = true; emit("idle_started", { thresholdMs: 60000 }); }, 60000);
+      idleTimer = window.setTimeout(() => { isIdle = true; setActive(false, "idle_threshold"); emit("idle_started", { thresholdMs: IDLE_THRESHOLD_MS }); }, IDLE_THRESHOLD_MS);
     };
-    const onVisibility = () => emit(document.visibilityState === "hidden" ? "visibility_hidden" : "visibility_visible", { visibility: document.visibilityState });
-    const onBlur = () => emit("visibility_hidden", { reason: "window_blur" });
-    const onFocus = () => { emit("visibility_visible", { reason: "window_focus" }); resetIdle(); };
+    const onVisibility = () => {
+      const hidden = document.visibilityState === "hidden";
+      emit(hidden ? "visibility_hidden" : "visibility_visible", { visibility: document.visibilityState });
+      setActive(!hidden, hidden ? "document_hidden" : "document_visible");
+      if (!hidden) { void flushTelemetryQueue(); resetIdle(); }
+    };
+    const onBlur = () => { emit("window_blurred", { reason: "window_blur" }); setActive(false, "window_blur"); };
+    const onFocus = () => { emit("window_focused", { reason: "window_focus" }); resetIdle(); void flushTelemetryQueue(); };
+    const onPageHide = () => { emit("page_hidden", { persisted: false }); setActive(false, "pagehide"); };
+    const onPageShow = () => { emit("page_visible", { persisted: true }); resetIdle(); void flushTelemetryQueue(); };
+    const onFreeze = () => { emit("page_frozen", {}); setActive(false, "page_freeze"); };
+    const onResume = () => { emit("page_resumed", {}); resetIdle(); void flushTelemetryQueue(); };
+    const onOnline = () => { void flushTelemetryQueue(); };
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("blur", onBlur);
     window.addEventListener("focus", onFocus);
+    window.addEventListener("pagehide", onPageHide);
+    window.addEventListener("pageshow", onPageShow);
+    window.addEventListener("freeze", onFreeze);
+    window.addEventListener("resume", onResume);
+    window.addEventListener("online", onOnline);
     window.addEventListener("pointerdown", resetIdle);
     window.addEventListener("keydown", resetIdle);
+    heartbeatTimer = window.setInterval(() => { if (isActive && !isIdle && document.visibilityState === "visible") emit("heartbeat", { active: true }); }, HEARTBEAT_INTERVAL_MS);
     resetIdle();
-    return () => { window.clearTimeout(idleTimer); document.removeEventListener("visibilitychange", onVisibility); window.removeEventListener("blur", onBlur); window.removeEventListener("focus", onFocus); window.removeEventListener("pointerdown", resetIdle); window.removeEventListener("keydown", resetIdle); };
+    void flushTelemetryQueue();
+    return () => { window.clearTimeout(idleTimer); window.clearInterval(heartbeatTimer); document.removeEventListener("visibilitychange", onVisibility); window.removeEventListener("blur", onBlur); window.removeEventListener("focus", onFocus); window.removeEventListener("pagehide", onPageHide); window.removeEventListener("pageshow", onPageShow); window.removeEventListener("freeze", onFreeze); window.removeEventListener("resume", onResume); window.removeEventListener("online", onOnline); window.removeEventListener("pointerdown", resetIdle); window.removeEventListener("keydown", resetIdle); };
   }, [attemptId, context, lesson?.id]);
 
   async function startAttempt(current: Assessment) {
@@ -129,18 +174,30 @@ export default function StudentJourneyPage() {
     if (!data) throw new Error("Attempt could not be created");
     setAttemptId(data.id); await logEvent(context, "assessment_started", { kind: current.kind }, lesson?.id, data.id); return data.id;
   }
-  async function submitAssessment(answers: Record<string, string>, kind: "pretest" | "posttest") {
+  const assessmentTelemetry = useCallback((eventType: PilotEventType, payload: Record<string, unknown>, itemId?: string) => {
+    if (!context) return;
+    void logEvent(context, eventType, payload, lesson?.id, attemptId ?? undefined, itemId);
+    if ((eventType === "answer_selected" || eventType === "answer_changed") && attemptId && itemId) {
+      const value = payload.next_value;
+      void supabase.from("assessment_responses").insert({
+        program_id: scholar!.programId, cohort_id: scholar!.cohortId, scholar_id: scholar!.id, attempt_id: attemptId,
+        item_id: itemId, response_value: value, revision_number: Number(payload.revision_number ?? 1),
+        client_revision_id: crypto.randomUUID(), changed_at_client: nowIso(), is_final: false,
+      });
+    }
+  }, [attemptId, context, lesson?.id, scholar]);
+  async function submitAssessment(answers: Record<string, string>, revisions: Record<string, number>, kind: "pretest" | "posttest") {
     if (!context || !assessment) return;
     const current = kind === "pretest" ? assessment : JSON.parse(localStorage.getItem("d2d-posttest") ?? "null") as Assessment;
-    const id = await startAttempt(current);
-    await supabase.from("assessment_responses").insert(Object.entries(answers).map(([itemId, value]) => ({ program_id: scholar!.programId, cohort_id: scholar!.cohortId, scholar_id: scholar!.id, attempt_id: id, item_id: itemId, response_value: value, changed_at_client: nowIso(), is_final: true })));
+    const id = attemptId ?? await startAttempt(current);
+    await supabase.from("assessment_responses").insert(Object.entries(answers).map(([itemId, value]) => ({ program_id: scholar!.programId, cohort_id: scholar!.cohortId, scholar_id: scholar!.id, attempt_id: id, item_id: itemId, response_value: value, revision_number: revisions[itemId] ?? 1, client_revision_id: crypto.randomUUID(), changed_at_client: nowIso(), is_final: true })));
     await logEvent(context, "assessment_submitted", { kind, answerCount: Object.keys(answers).length }, lesson?.id, id);
-    if (kind === "pretest") setStep("lesson");
+    if (kind === "pretest") { setAttemptId(null); setStep("lesson"); }
     else { const { data, error } = await supabase.functions.invoke("score-assessment-attempt", { body: { attemptId: id } }); if (error || !data?.result) { setLoadError("Your responses were saved, but the result could not be generated yet."); return; } setResult(data.result); setStep("result"); }
   }
   function reset() { localStorage.removeItem("d2d-scholar"); localStorage.removeItem("d2d-posttest"); void supabase.auth.signOut(); setScholar(null); setStep("pretest"); setResult(null); }
   if (loading) return <JourneyChrome><div className="journey-loading"><RefreshCw className="spin" /> Loading your learning space…</div></JourneyChrome>;
   if (!scholar) return <AccessGate onSuccess={setScholar} />;
   if (loadError) return <JourneyChrome scholar={scholar} onReset={reset}><div className="journey-loading"><p>{loadError}</p><button className="button button--dark" onClick={() => window.location.reload()}>Try again</button></div></JourneyChrome>;
-  return <JourneyChrome scholar={scholar} onReset={reset}><main className="journey-main"><div className="journey-progress"><span className={step === "pretest" ? "is-current" : "is-done"}>01 / NOTICE</span><span className={step === "lesson" ? "is-current" : step === "posttest" || step === "result" ? "is-done" : ""}>02 / TRY</span><span className={step === "posttest" ? "is-current" : step === "result" ? "is-done" : ""}>03 / CARRY</span></div>{step === "pretest" && assessment && <AssessmentCard assessment={assessment} label="STARTING POINT" onSubmit={(answers) => submitAssessment(answers, "pretest")} />}{step === "lesson" && lesson && context && <LessonCard lesson={lesson} context={context} onDone={() => setStep("posttest")} />}{step === "posttest" && <AssessmentCard assessment={JSON.parse(localStorage.getItem("d2d-posttest") ?? "null") as Assessment} label="REFLECTION POINT" onSubmit={(answers) => submitAssessment(answers, "posttest")} />}{step === "result" && result && <JourneyResult result={result} onRestart={() => setStep("pretest")} />}</main></JourneyChrome>;
+  return <JourneyChrome scholar={scholar} onReset={reset}><main className="journey-main"><div className="journey-progress"><span className={step === "pretest" ? "is-current" : "is-done"}>01 / NOTICE</span><span className={step === "lesson" ? "is-current" : step === "posttest" || step === "result" ? "is-done" : ""}>02 / TRY</span><span className={step === "posttest" ? "is-current" : step === "result" ? "is-done" : ""}>03 / CARRY</span></div>{step === "pretest" && assessment && attemptId && <AssessmentCard assessment={assessment} label="STARTING POINT" onTelemetry={assessmentTelemetry} onSubmit={(answers, revisions) => submitAssessment(answers, revisions, "pretest")} />}{step === "lesson" && lesson && context && <LessonCard lesson={lesson} context={context} onDone={() => setStep("posttest")} />}{step === "posttest" && attemptId && <AssessmentCard assessment={JSON.parse(localStorage.getItem("d2d-posttest") ?? "null") as Assessment} label="REFLECTION POINT" onTelemetry={assessmentTelemetry} onSubmit={(answers, revisions) => submitAssessment(answers, revisions, "posttest")} />}{step === "result" && result && <JourneyResult result={result} onRestart={() => setStep("pretest")} />}</main></JourneyChrome>;
 }

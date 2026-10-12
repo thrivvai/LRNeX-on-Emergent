@@ -1,15 +1,31 @@
-export const PILOT_APP_VERSION = "d2d-pilot-0.3.0";
+export const PILOT_APP_VERSION = "d2d-pilot-0.4.0";
 
 export const PILOT_EVENT_TYPES = [
   "assessment_started",
   "assessment_submitted",
+  "assessment_item_entered",
+  "assessment_item_exited",
+  "answer_selected",
+  "answer_changed",
+  "answer_finalized",
   "lesson_opened",
   "lesson_step_viewed",
   "lesson_completed",
   "visibility_hidden",
   "visibility_visible",
+  "window_blurred",
+  "window_focused",
+  "page_hidden",
+  "page_visible",
+  "page_frozen",
+  "page_resumed",
+  "active_interval_started",
+  "active_interval_ended",
   "idle_started",
   "idle_ended",
+  "heartbeat",
+  "telemetry_flush_succeeded",
+  "telemetry_flush_failed",
 ] as const;
 
 export type PilotEventType = (typeof PILOT_EVENT_TYPES)[number];
@@ -17,6 +33,8 @@ export type PilotEventType = (typeof PILOT_EVENT_TYPES)[number];
 export const ACCESS_CODE_MIN_LENGTH = 10;
 export const ACCESS_CODE_MAX_LENGTH = 32;
 export const REDEMPTION_RATE_LIMIT = { maxFailures: 3, windowSeconds: 900 } as const;
+export const IDLE_THRESHOLD_MS = 60_000;
+export const HEARTBEAT_INTERVAL_MS = 15_000;
 
 export function normalizeAccessCode(value: string) {
   return value.trim().toUpperCase().replaceAll("-", "");
