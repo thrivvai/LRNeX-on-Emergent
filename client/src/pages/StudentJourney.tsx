@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import { supabase } from "@/lib/supabase";
 import { insertTelemetryEvent, flushTelemetryQueue } from "@/lib/telemetry";
-import { HEARTBEAT_INTERVAL_MS, IDLE_THRESHOLD_MS, isPlausibleAccessCode, normalizeAccessCode, PILOT_APP_VERSION, type PilotEventType } from "@shared/pilot";
+import { DEMO_ACCESS_CODE, HEARTBEAT_INTERVAL_MS, IDLE_THRESHOLD_MS, isPlausibleAccessCode, normalizeAccessCode, PILOT_APP_VERSION, type PilotEventType } from "@shared/pilot";
 
 type Scholar = { id: string; pseudonym: string; programId: string; cohortId: string };
 type AssessmentItem = { id: string; item_order: number; prompt: string; choices: Array<{ id: string; label: string }> };
@@ -36,15 +36,15 @@ function AccessGate({ onSuccess }: { onSuccess: (scholar: Scholar) => void }) {
   async function redeem(event: React.FormEvent) {
     event.preventDefault(); setBusy(true); setError("");
     const normalizedCode = normalizeAccessCode(code);
-    if (!isPlausibleAccessCode(normalizedCode)) { setError("Enter the full access code your instructor gave you. For the seeded demo preview, use D2D-DEMO-01."); setBusy(false); return; }
+    if (!isPlausibleAccessCode(normalizedCode)) { setError(`Enter the full access code your instructor gave you. For the seeded demo preview, use ${DEMO_ACCESS_CODE}.`); setBusy(false); return; }
     const { error: authError } = await supabase.auth.signInAnonymously();
     if (authError) { setError("Student sessions are not enabled yet. Enable Anonymous Sign-Ins in Supabase Auth, then try again."); setBusy(false); return; }
     const { data, error: functionError } = await supabase.functions.invoke("redeem-student-access-code", { body: { code: normalizedCode } });
-    if (functionError || !data?.scholar) { setError(data?.error === "too_many_attempts" ? "Too many tries. Please wait 15 minutes before trying again." : data?.error === "invalid_or_expired_code" ? "That access code is not active. For the seeded demo preview, use D2D-DEMO-01." : data?.error === "redemption_unavailable" ? "Student access is temporarily unavailable because the pilot service is offline. Try again after the pilot administrator reactivates it." : "We could not verify that code. Ask the pilot administrator to issue an active code."); setBusy(false); return; }
+    if (functionError || !data?.scholar) { setError(data?.error === "too_many_attempts" ? "Too many tries. Please wait 15 minutes before trying again." : data?.error === "invalid_or_expired_code" ? `That access code is not active. For the seeded demo preview, use ${DEMO_ACCESS_CODE}.` : data?.error === "redemption_unavailable" ? "Student access is temporarily unavailable because the pilot service is offline. Try again after the pilot administrator reactivates it." : "We could not verify that code. Ask the pilot administrator to issue an active code."); setBusy(false); return; }
     localStorage.setItem("d2d-scholar", JSON.stringify(data.scholar));
     onSuccess(data.scholar); setBusy(false);
   }
-  return <JourneyChrome><main className="journey-gate"><div className="journey-gate__stamp"><Sparkles size={19} /> RESEARCH PILOT / STUDENT ENTRY</div><h1>Bring your<br /><em>curiosity.</em></h1><p>Students enter with a code issued by the pilot administrator. No student name or school email is needed.</p><form onSubmit={redeem} className="code-form"><label htmlFor="student-code">Your access code</label><input id="student-code" value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} placeholder="D2D-DEMO-01" autoComplete="one-time-code" required /><small>Demo preview: <strong>D2D-DEMO-01</strong>. Live pilot scholars must use their assigned code.</small><button className="button button--primary" disabled={busy}>{busy ? "Checking…" : "Enter the learning space"}<ArrowRight size={16} /></button></form>{error && <div className="journey-error" role="alert">{error}</div>}<div className="journey-gate__note"><CircleHelp size={15} /> Your work is identified by a pilot pseudonym, not your name.</div></main></JourneyChrome>;
+  return <JourneyChrome><main className="journey-gate"><div className="journey-gate__stamp"><Sparkles size={19} /> RESEARCH PILOT / STUDENT ENTRY</div><h1>Bring your<br /><em>curiosity.</em></h1><p>Students enter with a code issued by the pilot administrator. No student name or school email is needed.</p><form onSubmit={redeem} className="code-form"><label htmlFor="student-code">Your access code</label><input id="student-code" value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} placeholder={DEMO_ACCESS_CODE} autoComplete="one-time-code" required /><small>Demo preview: <strong>{DEMO_ACCESS_CODE}</strong>. Live pilot scholars must use their assigned code.</small><button className="button button--primary" disabled={busy}>{busy ? "Checking…" : "Enter the learning space"}<ArrowRight size={16} /></button></form>{error && <div className="journey-error" role="alert">{error}</div>}<div className="journey-gate__note"><CircleHelp size={15} /> Your work is identified by a pilot pseudonym, not your name.</div></main></JourneyChrome>;
 }
 
 function AssessmentCard({ assessment, onSubmit, label, onTelemetry }: { assessment: Assessment; onSubmit: (answers: Record<string, string>, revisions: Record<string, number>) => Promise<void>; label: string; onTelemetry: (eventType: PilotEventType, payload: Record<string, unknown>, itemId?: string) => void }) {

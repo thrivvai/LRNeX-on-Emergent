@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { bandForConfiguredScore, normalizeAccessCode, PILOT_EVENT_TYPES, shouldAbstainFromAccommodation } from "../shared/pilot";
+import { bandForConfiguredScore, DEMO_ACCESS_CODE, normalizeAccessCode, PILOT_EVENT_TYPES, shouldAbstainFromAccommodation } from "../shared/pilot";
 
 describe("D2D pilot research contracts", () => {
   it("normalizes human-entered access codes before hashing", () => {
-    expect(normalizeAccessCode(" d2d-demo-01 ")).toBe("D2DDEMO01");
+    expect(normalizeAccessCode(` ${DEMO_ACCESS_CODE} `)).toBe("D2DDEMO001");
+    expect(normalizeAccessCode(DEMO_ACCESS_CODE)).toHaveLength(10);
   });
 
   it("uses behavior bands as supporting context, not a false precision score", () => {

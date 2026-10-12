@@ -32,6 +32,7 @@ export type PilotEventType = (typeof PILOT_EVENT_TYPES)[number];
 
 export const ACCESS_CODE_MIN_LENGTH = 10;
 export const ACCESS_CODE_MAX_LENGTH = 32;
+export const DEMO_ACCESS_CODE = "D2D-DEMO-001";
 export const REDEMPTION_RATE_LIMIT = { maxFailures: 3, windowSeconds: 900 } as const;
 export const IDLE_THRESHOLD_MS = 60_000;
 export const HEARTBEAT_INTERVAL_MS = 15_000;

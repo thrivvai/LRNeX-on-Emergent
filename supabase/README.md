@@ -8,4 +8,6 @@ The repository now contains a live catalog snapshot in `schema.sql`, the RLS pol
 
 The hardening migration adds a service-role-only redemption rate-limit ledger, 3 failures per 15 minutes per session/IP key, versioned score configurations, and a unique source-attempt/derivation key for idempotent score results. Raw codes, raw IP addresses, service-role credentials, and environment files do not belong in this repository.
 
-The seeded student code remains development-only: `D2D-DEMO-01`. Production pilot codes must be randomly generated, normalized before hashing, and at least 10 characters after normalization. The allowlisted pilot admins are `wramirez@diapers2deposits.com` and `xavier@thrivvai.com`.
+The isolated replay on 2026-09-26 exposed and fixed an ambiguous `retry_after_seconds` reference in the atomic redemption wrapper. The fix is recorded in `migrations/20260926112000_fix_atomic_redemption_rate_limit_alias.sql` and was applied to both the pilot and isolated security-test projects. The isolated project also passed the concurrent rate-limit race: two simultaneous failures, a third allowed attempt, and a fourth blocked for 900 seconds.
+
+The seeded student code remains development-only: `D2D-DEMO-001`. Production pilot codes must be randomly generated, normalized before hashing, and at least 10 characters after normalization. The allowlisted pilot admins are `wramirez@diapers2deposits.com` and `xavier@thrivvai.com`.
