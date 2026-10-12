@@ -9,7 +9,7 @@ function StaffChrome({ children }: { children: React.ReactNode }) {
   return <div className="staff-review"><header className="staff-review__header"><Link href="/" className="journey-brand"><span className="journey-brand__glyph"><i /><i /><i /></span><span><strong>D2D</strong><small>student growth</small></span></Link><span><ShieldCheck size={14} /> RLS-scoped research workspace</span></header>{children}</div>;
 }
 
-function StaffEntry() {
+function StaffEntry({ authIssue = "" }: { authIssue?: string }) {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
@@ -20,7 +20,7 @@ function StaffEntry() {
     if (authError) setError(authError.message); else setSent(true);
     setBusy(false);
   }
-  return <StaffChrome><main className="staff-entry"><div className="staff-entry__icon"><Mail size={21} /></div><span className="journey-card__kicker">INSTRUCTOR / ADMIN ENTRY</span><h1>Bring the<br /><em>read.</em></h1><p>Use your program email to receive a secure sign-in link. Staff access is scoped by program role; student records never come through a broad admin query.</p>{sent ? <div className="staff-success"><Check size={19} /><strong>Check your inbox.</strong><span>The secure link will return you to the D2D research workspace.</span></div> : <form onSubmit={sendLink} className="code-form"><label htmlFor="staff-email">Program email</label><input id="staff-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="instructor@school.org" required /><button className="button button--dark" disabled={busy}>{busy ? "Sending…" : "Send secure link"}<Mail size={16} /></button></form>}{error && <div className="journey-error" role="alert">{error}</div>}</main></StaffChrome>;
+  return <StaffChrome><main className="staff-entry"><div className="staff-entry__icon"><Mail size={21} /></div><span className="journey-card__kicker">INSTRUCTOR / ADMIN ENTRY</span><h1>Bring the<br /><em>read.</em></h1><p>Use your program email to receive a secure sign-in link. Staff access is scoped by program role; student records never come through a broad admin query.</p>{authIssue && <div className="journey-error" role="alert">{authIssue}</div>}{sent ? <div className="staff-success"><Check size={19} /><strong>Check your inbox.</strong><span>The secure link will return you to the D2D research workspace.</span></div> : <form onSubmit={sendLink} className="code-form"><label htmlFor="staff-email">Program email</label><input id="staff-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} placeholder="instructor@school.org" required /><small>Use an email already added to the D2D staff allowlist.</small><button className="button button--dark" disabled={busy}>{busy ? "Sending…" : "Send secure link"}<Mail size={16} /></button></form>}{error && <div className="journey-error" role="alert">{error}</div>}</main></StaffChrome>;
 }
 
 type Row = { scholar_id: string; band: string; score: number | null; abstained: boolean; pseudonym?: string; judged?: string | null };
@@ -62,11 +62,20 @@ function StaffDashboard() {
 
 export default function StaffReview() {
   const [session, setSession] = useState<boolean | null>(null);
+  const [authIssue, setAuthIssue] = useState("");
   useEffect(() => { void (async () => {
-    const { data } = await supabase.auth.getSession();
-    if (data.session) await supabase.functions.invoke("bootstrap-staff-membership", { body: {} });
+    const { data, error } = await supabase.auth.getSession();
+    if (error) { setAuthIssue("We could not read your secure session. Request a new sign-in link and try again."); setSession(false); return; }
+    if (data.session) {
+      const { data: bootstrap, error: bootstrapError } = await supabase.functions.invoke("bootstrap-staff-membership", { body: {} });
+      if (bootstrapError || bootstrap?.error) {
+        await supabase.auth.signOut();
+        setAuthIssue(bootstrap?.error === "staff_not_allowlisted" ? "This account is authenticated but is not on the D2D staff allowlist. Ask the pilot administrator to add this email." : "Your account could not be connected to the D2D staff workspace. Request a new sign-in link after the pilot administrator checks the staff setup.");
+        setSession(false); return;
+      }
+    }
     setSession(Boolean(data.session));
   })(); }, []);
   if (session === null) return <StaffChrome><div className="journey-loading">Checking secure session…</div></StaffChrome>;
-  return session ? <StaffDashboard /> : <StaffEntry />;
+  return session ? <StaffDashboard /> : <StaffEntry authIssue={authIssue} />;
 }
