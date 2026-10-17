@@ -28,6 +28,12 @@ export type CurriculumModule = {
   steps: CurriculumStep[];
 };
 
+/** Version tag on lesson_progress rows for these modules; must equal the seeded lessons' content_version. */
+export const CURRICULUM_CONTENT_VERSION = "curriculum-1";
+
+// The UI renders this file, while lesson_progress and learning_events reference the lessons seeded by
+// supabase/migrations/20260927000000_d2d_curriculum_modules.sql. Each module's lessonId, slug, title, and
+// step text must match that seed; server/curriculum.contract.test.ts fails if they drift apart.
 export const D2D_CURRICULUM: CurriculumModule[] = [
   {
     id: "module-01",

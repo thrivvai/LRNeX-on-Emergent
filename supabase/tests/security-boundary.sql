@@ -28,3 +28,5 @@ rollback;
 -- 6. repeated scorer calls return one confidence result per source_attempt_id/derivation_version.
 -- 7. three invalid code attempts return 429; a fourth request remains blocked until the window expires.
 -- 8. a valid code is atomic under concurrent redemption and cannot exceed max_redemptions.
+-- 9. scholar writes must carry the scholar's own program, cohort, attempt, and lesson: implemented and
+--    runnable in scholar-write-context.sql.

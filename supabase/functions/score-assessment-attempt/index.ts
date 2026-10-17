@@ -39,7 +39,9 @@ Deno.serve(async (req) => {
   const derivationVersion = config.data.version;
   const { data: existing } = await admin.from("confidence_results").select("id,band,score,abstained,abstention_reason,derivation_version").eq("source_attempt_id", attempt.id).eq("derivation_version", derivationVersion).maybeSingle();
   if (existing) return json({ result: existing, idempotent: true });
-  const { data: rawResponses, error: responseError } = await admin.from("assessment_responses").select("item_id,response_value,revision_number,is_final").eq("attempt_id", attempt.id).order("revision_number", { ascending: false });
+  // Filter by scholar as well as attempt: the service-role client bypasses RLS, so this function must not
+  // score a response another scholar attached to this attempt.
+  const { data: rawResponses, error: responseError } = await admin.from("assessment_responses").select("item_id,response_value,revision_number,is_final").eq("attempt_id", attempt.id).eq("scholar_id", attempt.scholar_id).order("revision_number", { ascending: false });
   if (responseError) return json({ error: "responses_unavailable" }, 500);
   const responses = (rawResponses ?? []).map((response) => responseSchema.safeParse(response)).filter((parsedResponse): parsedResponse is { success: true; data: z.infer<typeof responseSchema> } => parsedResponse.success).map((parsedResponse) => parsedResponse.data).filter((response) => response.is_final);
   const latest = new Map<string, { response_value: JsonValue; is_final: boolean; revision_number: number }>();

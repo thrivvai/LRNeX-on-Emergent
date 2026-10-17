@@ -24,7 +24,7 @@ The scorer runs server-side and reads answer keys that are not exposed through s
 
 ## Demo seed
 
-The demo cohort is `DEMO-01`, the pseudonym is `Scholar A-01`, and the non-production student access code is `D2D-DEMO-001`. Replace this seed with instructor-approved pilot records before live research use.
+The demo cohort is `DEMO-01`, the pseudonym is `Scholar A-01`, and the non-production student access code is `D2D-DEMO-001`, which expires 90 days after `20261017000000_scholar_write_context.sql` is applied (see `supabase/README.md` to extend or revoke it). Replace this seed with instructor-approved pilot records before live research use.
 
 ## Verification completed
 
