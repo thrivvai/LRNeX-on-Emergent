@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import { supabase } from "@/lib/supabase";
 import { insertTelemetryEvent } from "@/lib/telemetry";
-import { D2D_CURRICULUM, type CurriculumModule } from "@shared/curriculum";
+import { CURRICULUM_CONTENT_VERSION, D2D_CURRICULUM, type CurriculumModule } from "@shared/curriculum";
 import { PILOT_APP_VERSION } from "@shared/pilot";
 
 type Scholar = { id: string; pseudonym: string; programId: string; cohortId: string };
@@ -64,7 +64,7 @@ export default function CurriculumPage() {
     const next = { ...progress, [selected.id]: nextProgress };
     setProgress(next); localStorage.setItem(PROGRESS_KEY, JSON.stringify(next)); setSaved(true);
     if (scholar) {
-      await supabase.from("lesson_progress").upsert({ program_id: scholar.programId, cohort_id: scholar.cohortId, scholar_id: scholar.id, lesson_id: selected.lessonId, status: nextProgress >= selected.steps.length ? "completed" : "in_progress", current_step: currentStep.id, content_version: "curriculum-1", completed_at_client: nextProgress >= selected.steps.length ? new Date().toISOString() : null }, { onConflict: "scholar_id,lesson_id,content_version" });
+      await supabase.from("lesson_progress").upsert({ program_id: scholar.programId, cohort_id: scholar.cohortId, scholar_id: scholar.id, lesson_id: selected.lessonId, status: nextProgress >= selected.steps.length ? "completed" : "in_progress", current_step: currentStep.id, content_version: CURRICULUM_CONTENT_VERSION, completed_at_client: nextProgress >= selected.steps.length ? new Date().toISOString() : null }, { onConflict: "scholar_id,lesson_id,content_version" });
     }
     await log(nextProgress >= selected.steps.length ? "lesson_completed" : "lesson_step_viewed", { step: currentStep.id, completed: nextProgress >= selected.steps.length });
     if (stepIndex < selected.steps.length - 1) setStepIndex(stepIndex + 1);
