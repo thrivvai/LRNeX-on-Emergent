@@ -1,5 +1,5 @@
 import { ArrowLeft, ArrowRight, BookOpen, Check, CircleHelp, LockKeyhole, RotateCcw, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import { supabase } from "@/lib/supabase";
 import { insertTelemetryEvent } from "@/lib/telemetry";
@@ -25,6 +25,9 @@ export default function CurriculumPage() {
   const [practiceAnswer, setPracticeAnswer] = useState<string | null>(null);
   const [practiceRevision, setPracticeRevision] = useState(0);
   const [saved, setSaved] = useState(false);
+  // One telemetry session per visit with a monotonic sequence, as in StudentJourney. `event_seq` is an
+  // int4 column, so it can't hold a timestamp.
+  const session = useRef({ id: crypto.randomUUID(), seq: 0 });
   const selected = useMemo(() => D2D_CURRICULUM.find((module) => module.id === selectedId) ?? D2D_CURRICULUM[0], [selectedId]);
   const currentStep = selected.steps[stepIndex] ?? selected.steps[0];
   const completedSteps = progress[selected.id] ?? 0;
@@ -44,15 +47,15 @@ export default function CurriculumPage() {
     if (!scholar) return;
     await insertTelemetryEvent({
       event_id: crypto.randomUUID(), program_id: scholar.programId, cohort_id: scholar.cohortId, scholar_id: scholar.id,
-      session_id: localStorage.getItem("d2d-curriculum-session") ?? crypto.randomUUID(), event_seq: Date.now(), event_type: eventType,
-      event_version: "2", lesson_id: selected.lessonId, item_id: currentStep.id, occurred_at_client: new Date().toISOString(),
+      session_id: session.current.id, event_seq: session.current.seq++, event_type: eventType,
+      // Curriculum steps are scenes, not assessment items: `item_id` is a uuid FK to assessment_items.
+      event_version: "2", lesson_id: selected.lessonId, scene_id: currentStep.id, occurred_at_client: new Date().toISOString(),
       client_monotonic_ms: Math.round(performance.now()), payload, app_version: PILOT_APP_VERSION,
     });
   }
 
   async function selectModule(module: CurriculumModule) {
     setSelectedId(module.id); setStepIndex(progress[module.id] ?? 0); setSaved(false);
-    localStorage.setItem("d2d-curriculum-session", localStorage.getItem("d2d-curriculum-session") ?? crypto.randomUUID());
     await log("lesson_opened", { module: module.slug, status: module.status });
   }
 

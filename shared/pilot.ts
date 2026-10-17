@@ -26,6 +26,8 @@ export const PILOT_EVENT_TYPES = [
   "heartbeat",
   "telemetry_flush_succeeded",
   "telemetry_flush_failed",
+  // Emitted by the delivery queue itself: records events evicted at capacity so analysis can see the gap.
+  "telemetry_queue_overflow",
 ] as const;
 
 export type PilotEventType = (typeof PILOT_EVENT_TYPES)[number];
